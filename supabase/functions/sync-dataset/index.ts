@@ -116,7 +116,7 @@ serve(async (req) => {
 
     // Send to Python API with timeout and better error handling
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout for large datasets
     
     let syncResponse;
     try {
