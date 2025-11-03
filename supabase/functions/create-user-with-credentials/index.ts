@@ -1,9 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "npm:resend@4.0.0";
 
-const EMAILJS_SERVICE_ID = Deno.env.get("EMAILJS_SERVICE_ID");
-const EMAILJS_TEMPLATE_ID = Deno.env.get("EMAILJS_TEMPLATE_ID_CREDENTIALS");
-const EMAILJS_PUBLIC_KEY = Deno.env.get("EMAILJS_PUBLIC_KEY");
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -105,34 +104,41 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Failed to log audit trail (non-critical):", auditError);
     }
 
-    // Send credentials email
+    // Send credentials email using Resend
     let emailSent = false;
     try {
-      const emailResponse = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          service_id: EMAILJS_SERVICE_ID,
-          template_id: EMAILJS_TEMPLATE_ID,
-          user_id: EMAILJS_PUBLIC_KEY,
-          template_params: {
-            to_email: email,
-            to_name: name,
-            user_email: email,
-            user_password: password,
-            role: role.replace('_', ' ').toUpperCase(),
-          },
-        }),
+      const { data: emailData, error: emailError } = await resend.emails.send({
+        from: "Face Recognition System <onboarding@resend.dev>",
+        to: [email],
+        subject: `Your ${role.replace('_', ' ').toUpperCase()} Account Credentials`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Welcome to Face Recognition System</h2>
+            <p>Hello ${name},</p>
+            <p>Your account has been created successfully with the role of <strong>${role.replace('_', ' ').toUpperCase()}</strong>.</p>
+            
+            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Your Login Credentials:</h3>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Password:</strong> <code style="background-color: #e0e0e0; padding: 2px 6px; border-radius: 3px;">${password}</code></p>
+            </div>
+            
+            <p>Please keep these credentials secure and change your password after your first login.</p>
+            <p>You can now log in to the system using these credentials.</p>
+            
+            <p style="margin-top: 30px; color: #666;">
+              Best regards,<br>
+              Face Recognition System Team
+            </p>
+          </div>
+        `,
       });
 
-      if (emailResponse.ok) {
-        console.log("Email sent successfully via EmailJS");
-        emailSent = true;
+      if (emailError) {
+        console.error("Resend email error:", emailError);
       } else {
-        const errorText = await emailResponse.text();
-        console.error("EmailJS error:", errorText);
+        console.log("Email sent successfully via Resend:", emailData);
+        emailSent = true;
       }
     } catch (emailError: any) {
       console.error("Failed to send email (non-critical):", emailError);
