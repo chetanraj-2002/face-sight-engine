@@ -14,7 +14,217 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      attendance_logs: {
+        Row: {
+          class: string | null
+          confidence: number
+          created_at: string | null
+          id: string
+          image_url: string | null
+          name: string
+          session_id: string
+          timestamp: string
+          user_id: string | null
+          usn: string
+        }
+        Insert: {
+          class?: string | null
+          confidence: number
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          session_id: string
+          timestamp: string
+          user_id?: string | null
+          usn: string
+        }
+        Update: {
+          class?: string | null
+          confidence?: number
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          session_id?: string
+          timestamp?: string
+          user_id?: string | null
+          usn?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      face_images: {
+        Row: {
+          id: string
+          image_url: string
+          storage_path: string
+          uploaded_at: string | null
+          user_id: string | null
+          usn: string
+        }
+        Insert: {
+          id?: string
+          image_url: string
+          storage_path: string
+          uploaded_at?: string | null
+          user_id?: string | null
+          usn: string
+        }
+        Update: {
+          id?: string
+          image_url?: string
+          storage_path?: string
+          uploaded_at?: string | null
+          user_id?: string | null
+          usn?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "face_images_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recognition_history: {
+        Row: {
+          faces_detected: number | null
+          faces_recognized: number | null
+          id: string
+          image_url: string
+          results: Json | null
+          timestamp: string | null
+        }
+        Insert: {
+          faces_detected?: number | null
+          faces_recognized?: number | null
+          id?: string
+          image_url: string
+          results?: Json | null
+          timestamp?: string | null
+        }
+        Update: {
+          faces_detected?: number | null
+          faces_recognized?: number | null
+          id?: string
+          image_url?: string
+          results?: Json | null
+          timestamp?: string | null
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
+      training_jobs: {
+        Row: {
+          accuracy: number | null
+          completed_at: string | null
+          embeddings_count: number | null
+          error_message: string | null
+          id: string
+          job_type: string
+          logs: string | null
+          model_version: string | null
+          progress: number | null
+          result_data: Json | null
+          started_at: string | null
+          status: string
+          users_processed: number | null
+        }
+        Insert: {
+          accuracy?: number | null
+          completed_at?: string | null
+          embeddings_count?: number | null
+          error_message?: string | null
+          id?: string
+          job_type: string
+          logs?: string | null
+          model_version?: string | null
+          progress?: number | null
+          result_data?: Json | null
+          started_at?: string | null
+          status?: string
+          users_processed?: number | null
+        }
+        Update: {
+          accuracy?: number | null
+          completed_at?: string | null
+          embeddings_count?: number | null
+          error_message?: string | null
+          id?: string
+          job_type?: string
+          logs?: string | null
+          model_version?: string | null
+          progress?: number | null
+          result_data?: Json | null
+          started_at?: string | null
+          status?: string
+          users_processed?: number | null
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          class: string | null
+          created_at: string | null
+          id: string
+          image_count: number | null
+          last_seen: string | null
+          name: string
+          updated_at: string | null
+          usn: string
+        }
+        Insert: {
+          class?: string | null
+          created_at?: string | null
+          id?: string
+          image_count?: number | null
+          last_seen?: string | null
+          name: string
+          updated_at?: string | null
+          usn: string
+        }
+        Update: {
+          class?: string | null
+          created_at?: string | null
+          id?: string
+          image_count?: number | null
+          last_seen?: string | null
+          name?: string
+          updated_at?: string | null
+          usn?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
