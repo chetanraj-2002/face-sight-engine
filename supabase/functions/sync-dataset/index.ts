@@ -22,7 +22,12 @@ serve(async (req) => {
       throw new Error('PYTHON_API_URL not configured');
     }
 
-    console.log('Starting dataset sync...');
+    // Normalize URL - add http:// if no protocol specified
+    const normalizedUrl = pythonApiUrl.startsWith('http://') || pythonApiUrl.startsWith('https://') 
+      ? pythonApiUrl 
+      : `http://${pythonApiUrl}`;
+
+    console.log('Starting dataset sync to:', normalizedUrl);
 
     // Fetch all users from Supabase
     const { data: users, error: usersError } = await supabaseClient
@@ -97,7 +102,7 @@ serve(async (req) => {
     console.log(`Prepared ${totalImagesSynced} images for sync`);
 
     // Send to Python API
-    const syncResponse = await fetch(`${pythonApiUrl}/api/dataset/sync`, {
+    const syncResponse = await fetch(`${normalizedUrl}/api/dataset/sync`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -22,7 +22,12 @@ serve(async (req) => {
       throw new Error('PYTHON_API_URL not configured');
     }
 
-    console.log('Starting model training...');
+    // Normalize URL - add http:// if no protocol specified
+    const normalizedUrl = pythonApiUrl.startsWith('http://') || pythonApiUrl.startsWith('https://') 
+      ? pythonApiUrl 
+      : `http://${pythonApiUrl}`;
+
+    console.log('Starting model training to:', normalizedUrl);
 
     // Create training job record
     const { data: job, error: jobError } = await supabaseClient
@@ -42,7 +47,7 @@ serve(async (req) => {
     console.log('Created job:', job.id);
 
     // Trigger training on Python API
-    const trainResponse = await fetch(`${pythonApiUrl}/api/train/model`, {
+    const trainResponse = await fetch(`${normalizedUrl}/api/train/model`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -73,7 +78,7 @@ serve(async (req) => {
       attempts++;
 
       try {
-        const statusResponse = await fetch(`${pythonApiUrl}/api/train/status`);
+        const statusResponse = await fetch(`${normalizedUrl}/api/train/status`);
         if (statusResponse.ok) {
           const status = await statusResponse.json();
           

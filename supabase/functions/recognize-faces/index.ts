@@ -22,6 +22,11 @@ serve(async (req) => {
       throw new Error('PYTHON_API_URL not configured');
     }
 
+    // Normalize URL - add http:// if no protocol specified
+    const normalizedUrl = pythonApiUrl.startsWith('http://') || pythonApiUrl.startsWith('https://') 
+      ? pythonApiUrl 
+      : `http://${pythonApiUrl}`;
+
     const formData = await req.formData();
     const imageFile = formData.get('image') as File;
 
@@ -29,14 +34,14 @@ serve(async (req) => {
       throw new Error('No image file provided');
     }
 
-    console.log('Processing recognition request...');
+    console.log('Processing recognition request to:', normalizedUrl);
 
     // Convert image to base64
     const arrayBuffer = await imageFile.arrayBuffer();
     const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
     // Send to Python API
-    const recognizeResponse = await fetch(`${pythonApiUrl}/api/recognize/image`, {
+    const recognizeResponse = await fetch(`${normalizedUrl}/api/recognize/image`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
