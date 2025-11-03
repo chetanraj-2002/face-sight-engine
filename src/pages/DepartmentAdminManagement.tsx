@@ -7,6 +7,9 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { UserPlus, Building } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { RoleHierarchy } from '@/components/roles/RoleHierarchy';
+import { RoleAuditTrail } from '@/components/roles/RoleAuditTrail';
+import { UserRolesList } from '@/components/roles/UserRolesList';
 
 
 export default function DepartmentAdminManagement() {
@@ -91,6 +94,11 @@ export default function DepartmentAdminManagement() {
         </p>
       </div>
 
+      <div className="grid gap-6 lg:grid-cols-2">
+        <RoleHierarchy currentRole={profile.role} />
+        <RoleAuditTrail />
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -144,6 +152,8 @@ export default function DepartmentAdminManagement() {
           </form>
         </CardContent>
       </Card>
+
+      <UserRolesList filterRole="department_admin" />
     </div>
   );
 }

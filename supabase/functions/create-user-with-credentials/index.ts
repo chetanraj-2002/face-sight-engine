@@ -78,6 +78,33 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("User created successfully:", authData.user.id);
 
+    const userId = authData.user.id;
+
+    // Log role assignment to audit trail
+    try {
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader) {
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: currentUser } } = await supabaseAdmin.auth.getUser(token);
+        
+        if (currentUser) {
+          await supabaseAdmin.from('role_change_audit').insert({
+            user_id: userId,
+            performed_by: currentUser.id,
+            action: 'assigned',
+            role,
+            institute,
+            department,
+            details: { email, name, created_via: 'edge_function' },
+          });
+          console.log("Role assignment logged to audit trail");
+        }
+      }
+    } catch (auditError) {
+      // Non-critical - log but don't fail the request
+      console.error("Failed to log audit trail (non-critical):", auditError);
+    }
+
     // Send credentials email
     let emailSent = false;
     try {

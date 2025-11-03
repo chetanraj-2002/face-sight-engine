@@ -8,6 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { UserPlus, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { RoleHierarchy } from '@/components/roles/RoleHierarchy';
+import { RoleAuditTrail } from '@/components/roles/RoleAuditTrail';
+import { UserRolesList } from '@/components/roles/UserRolesList';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 export default function UserManagement() {
@@ -102,6 +106,11 @@ export default function UserManagement() {
         <p className="text-muted-foreground mt-2">
           Add faculty and students to your department
         </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <RoleHierarchy currentRole={profile.role} />
+        <RoleAuditTrail />
       </div>
 
       {/* Add Individual User */}
@@ -213,6 +222,34 @@ export default function UserManagement() {
               Coming soon: Upload multiple students at once via Excel
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Users by Role */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Assigned Users</CardTitle>
+          <CardDescription>
+            View and manage users by role
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="all">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="all">All Users</TabsTrigger>
+              <TabsTrigger value="faculty">Faculty</TabsTrigger>
+              <TabsTrigger value="student">Students</TabsTrigger>
+            </TabsList>
+            <TabsContent value="all" className="mt-6">
+              <UserRolesList />
+            </TabsContent>
+            <TabsContent value="faculty" className="mt-6">
+              <UserRolesList filterRole="faculty" />
+            </TabsContent>
+            <TabsContent value="student" className="mt-6">
+              <UserRolesList filterRole="student" />
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

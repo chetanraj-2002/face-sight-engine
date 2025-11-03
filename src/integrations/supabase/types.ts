@@ -201,6 +201,42 @@ export type Database = {
         }
         Relationships: []
       }
+      role_change_audit: {
+        Row: {
+          action: string
+          created_at: string
+          department: string | null
+          details: Json | null
+          id: string
+          institute: string | null
+          performed_by: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          department?: string | null
+          details?: Json | null
+          id?: string
+          institute?: string | null
+          performed_by: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          department?: string | null
+          details?: Json | null
+          id?: string
+          institute?: string | null
+          performed_by?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           id: string

@@ -7,6 +7,9 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Building2, UserPlus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { RoleHierarchy } from '@/components/roles/RoleHierarchy';
+import { RoleAuditTrail } from '@/components/roles/RoleAuditTrail';
+import { UserRolesList } from '@/components/roles/UserRolesList';
 
 import {
   AlertDialog,
@@ -126,6 +129,11 @@ export default function InstitutionManagement() {
         </p>
       </div>
 
+      <div className="grid gap-6 lg:grid-cols-2">
+        <RoleHierarchy currentRole={profile.role} />
+        <RoleAuditTrail />
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -180,19 +188,7 @@ export default function InstitutionManagement() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Model Health & Recognition</CardTitle>
-          <CardDescription>
-            System configuration and model management
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Model health monitoring and recognition improvement features will be available here.
-          </p>
-        </CardContent>
-      </Card>
+      <UserRolesList filterRole="institute_admin" />
 
       <Card className="border-destructive">
         <CardHeader>
