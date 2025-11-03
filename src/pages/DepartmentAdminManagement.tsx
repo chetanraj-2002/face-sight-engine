@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { UserPlus, Building } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { sendCredentialsEmail } from '@/lib/emailService';
+
 
 export default function DepartmentAdminManagement() {
   const { profile } = useAuth();
@@ -54,20 +54,11 @@ export default function DepartmentAdminManagement() {
         return;
       }
 
-      // Send credentials email via EmailJS from frontend
-      const emailResult = await sendCredentialsEmail(
-        formData.email,
-        formData.name,
-        data.password,
-        'DEPARTMENT ADMINISTRATOR'
-      );
-
-      if (emailResult.success) {
+      // Check if email was sent by the edge function
+      if (data.emailSent) {
         toast.success(`Department admin created successfully! Credentials sent to ${formData.email}`);
       } else {
-        toast.success(`Department admin created! Email: ${formData.email}, Password: ${data.password}`, {
-          duration: 10000,
-        });
+        toast.success('Department admin created successfully!');
         toast.warning('Email sending failed. Please share credentials manually.');
       }
       

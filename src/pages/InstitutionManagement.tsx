@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Building2, UserPlus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { sendCredentialsEmail } from '@/lib/emailService';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,20 +65,11 @@ export default function InstitutionManagement() {
         return;
       }
 
-      // Send credentials email via EmailJS from frontend
-      const emailResult = await sendCredentialsEmail(
-        formData.email,
-        formData.name,
-        data.password,
-        'INSTITUTE ADMINISTRATOR'
-      );
-
-      if (emailResult.success) {
+      // Check if email was sent by the edge function
+      if (data.emailSent) {
         toast.success(`Institution admin created successfully! Credentials sent to ${formData.email}`);
       } else {
-        toast.success(`Institution admin created! Email: ${formData.email}, Password: ${data.password}`, {
-          duration: 10000,
-        });
+        toast.success('Institution admin created successfully!');
         toast.warning('Email sending failed. Please share credentials manually.');
       }
       

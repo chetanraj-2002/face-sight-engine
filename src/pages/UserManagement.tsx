@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { UserPlus, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { sendCredentialsEmail } from '@/lib/emailService';
+
 
 export default function UserManagement() {
   const { profile } = useAuth();
@@ -59,20 +59,11 @@ export default function UserManagement() {
         return;
       }
 
-      // Send credentials email via EmailJS from frontend
-      const emailResult = await sendCredentialsEmail(
-        formData.email,
-        formData.name,
-        data.password,
-        formData.role === 'faculty' ? 'FACULTY' : 'STUDENT'
-      );
-
-      if (emailResult.success) {
+      // Check if email was sent by the edge function
+      if (data.emailSent) {
         toast.success(`${formData.role === 'faculty' ? 'Faculty' : 'Student'} created successfully! Credentials sent to ${formData.email}`);
       } else {
-        toast.success(`${formData.role === 'faculty' ? 'Faculty' : 'Student'} created! Email: ${formData.email}, Password: ${data.password}`, {
-          duration: 10000,
-        });
+        toast.success(`${formData.role === 'faculty' ? 'Faculty' : 'Student'} created successfully!`);
         toast.warning('Email sending failed. Please share credentials manually.');
       }
       
