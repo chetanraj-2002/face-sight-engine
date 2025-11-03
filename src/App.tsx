@@ -18,6 +18,10 @@ import DepartmentAdminManagement from "./pages/DepartmentAdminManagement";
 import UserManagement from "./pages/UserManagement";
 import AttendanceReports from "./pages/AttendanceReports";
 import StudentAttendance from "./pages/StudentAttendance";
+import BatchOperations from "./pages/BatchOperations";
+import AuditLogs from "./pages/AuditLogs";
+import MobileAttendance from "./pages/MobileAttendance";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +66,10 @@ const App = () => (
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/attendance-reports" element={<AttendanceReports />} />
               <Route path="/my-attendance" element={<StudentAttendance />} />
+              <Route path="/batch-operations" element={<BatchOperations />} />
+              <Route path="/audit-logs" element={<AuditLogs />} />
+              <Route path="/mobile-attendance" element={<MobileAttendance />} />
+              <Route path="/settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

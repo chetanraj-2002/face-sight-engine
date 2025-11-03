@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Database, GraduationCap, Brain, UserCheck, LayoutDashboard, LogOut, Building2, Building, Users, Activity } from 'lucide-react';
+import { Database, GraduationCap, Brain, UserCheck, LayoutDashboard, LogOut, Building2, Building, Users, Activity, FolderSync, FileSearch, Smartphone, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
@@ -14,6 +14,7 @@ const getNavigationForRole = (role: string | undefined) => {
       { name: 'Institutions', href: '/institutions', icon: Building2 },
       { name: 'Reports', href: '/attendance-reports', icon: Activity },
       { name: 'Model Health', href: '/training', icon: Activity },
+      { name: 'Audit Logs', href: '/audit-logs', icon: FileSearch },
     ],
     institute_admin: [
       { name: 'Departments', href: '/departments', icon: Building },
@@ -26,14 +27,18 @@ const getNavigationForRole = (role: string | undefined) => {
       { name: 'Recognition', href: '/recognition', icon: GraduationCap },
       { name: 'Attendance', href: '/attendance', icon: UserCheck },
       { name: 'Reports', href: '/attendance-reports', icon: Activity },
+      { name: 'Batch Operations', href: '/batch-operations', icon: FolderSync },
+      { name: 'Audit Logs', href: '/audit-logs', icon: FileSearch },
     ],
     faculty: [
       { name: 'Recognition', href: '/recognition', icon: GraduationCap },
       { name: 'Attendance', href: '/attendance', icon: UserCheck },
       { name: 'Reports', href: '/attendance-reports', icon: Activity },
+      { name: 'Mobile QR', href: '/mobile-attendance', icon: Smartphone },
     ],
     student: [
       { name: 'My Attendance', href: '/my-attendance', icon: UserCheck },
+      { name: 'Settings', href: '/settings', icon: Settings },
     ],
   };
 

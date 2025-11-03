@@ -103,6 +103,45 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+          new_values: Json | null
+          old_values: Json | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       dataset_quality_checks: {
         Row: {
           check_type: string
@@ -281,6 +320,36 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_absent_notifications: boolean | null
+          email_system_updates: boolean | null
+          email_training_complete: boolean | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_absent_notifications?: boolean | null
+          email_system_updates?: boolean | null
+          email_training_complete?: boolean | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_absent_notifications?: boolean | null
+          email_system_updates?: boolean | null
+          email_training_complete?: boolean | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           class: string | null
@@ -377,6 +446,39 @@ export type Database = {
           performed_by?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      session_qr_codes: {
+        Row: {
+          class_name: string
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          qr_code_data: string
+          session_id: string
+          subject: string | null
+        }
+        Insert: {
+          class_name: string
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          qr_code_data: string
+          session_id: string
+          subject?: string | null
+        }
+        Update: {
+          class_name?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          qr_code_data?: string
+          session_id?: string
+          subject?: string | null
         }
         Relationships: []
       }
