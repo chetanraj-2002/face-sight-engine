@@ -140,6 +140,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          class: string | null
           created_at: string | null
           department: string | null
           email: string | null
@@ -151,6 +152,7 @@ export type Database = {
           usn: string | null
         }
         Insert: {
+          class?: string | null
           created_at?: string | null
           department?: string | null
           email?: string | null
@@ -162,6 +164,7 @@ export type Database = {
           usn?: string | null
         }
         Update: {
+          class?: string | null
           created_at?: string | null
           department?: string | null
           email?: string | null
@@ -360,6 +363,7 @@ export type Database = {
         | "institute_admin"
         | "department_admin"
         | "student"
+        | "faculty"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -492,6 +496,7 @@ export const Constants = {
         "institute_admin",
         "department_admin",
         "student",
+        "faculty",
       ],
     },
   },
