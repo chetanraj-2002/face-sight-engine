@@ -11,11 +11,32 @@ import { useNavigate } from 'react-router-dom';
 export default function Bootstrap() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [created, setCreated] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     name: '',
   });
+
+  const handleReset = async () => {
+    if (!confirm('This will delete ALL existing super admins. Are you sure?')) {
+      return;
+    }
+
+    setResetting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-bootstrap');
+      
+      if (error) throw error;
+
+      toast.success('Reset successful! You can now create a new super admin.');
+    } catch (error: any) {
+      console.error('Error resetting:', error);
+      toast.error(error.message || 'Failed to reset');
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,11 +133,30 @@ export default function Bootstrap() {
               </ul>
             </div>
 
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button type="submit" disabled={loading || resetting} className="w-full">
               <Shield className="mr-2 h-4 w-4" />
               {loading ? 'Creating...' : 'Create Super Admin'}
             </Button>
           </form>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
+
+          <Button 
+            type="button" 
+            variant="destructive" 
+            onClick={handleReset} 
+            disabled={loading || resetting}
+            className="w-full"
+          >
+            {resetting ? 'Resetting...' : 'Reset & Delete Existing Super Admins'}
+          </Button>
         </CardContent>
       </Card>
     </div>
