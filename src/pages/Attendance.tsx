@@ -8,10 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAttendance } from '@/hooks/useAttendance';
 import CameraCapture from '@/components/attendance/CameraCapture';
+import { AbsentStudentsList } from '@/components/attendance/AbsentStudentsList';
 import { Plus, Upload, Download, Clock } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Attendance() {
+  const { profile } = useAuth();
   const [className, setClassName] = useState('');
   const [subject, setSubject] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -188,42 +191,52 @@ export default function Attendance() {
 
       {/* Attendance Records for Active Session */}
       {activeSession && attendanceRecords && attendanceRecords.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Marked Present</CardTitle>
-            <CardDescription>Students present in this session</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>USN</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>Confidence</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {attendanceRecords.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell>{record.usn}</TableCell>
-                    <TableCell>{record.name}</TableCell>
-                    <TableCell>{record.class}</TableCell>
-                    <TableCell>
-                      {new Date(record.timestamp).toLocaleTimeString()}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {(record.confidence * 100).toFixed(1)}%
-                      </Badge>
-                    </TableCell>
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Marked Present</CardTitle>
+              <CardDescription>Students present in this session</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>USN</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Class</TableHead>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>Confidence</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {attendanceRecords.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell>{record.usn}</TableCell>
+                      <TableCell>{record.name}</TableCell>
+                      <TableCell>{record.class}</TableCell>
+                      <TableCell>
+                        {new Date(record.timestamp).toLocaleTimeString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {(record.confidence * 100).toFixed(1)}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Show absent students for faculty and department admins */}
+          {(profile?.role === 'faculty' || profile?.role === 'department_admin') && (
+            <AbsentStudentsList 
+              sessionId={activeSession.session_id} 
+              className={activeSession.class_name}
+            />
+          )}
+        </>
       )}
 
       {/* Past Sessions */}
