@@ -159,12 +159,14 @@ def backup_dataset():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/train/extract-embeddings', methods=['POST'])
-def extract_embeddings():
+def _extract_embeddings_worker(confidence_threshold):
+    """Background worker for embedding extraction"""
+    global training_state
+    
     try:
-        data = request.json or {}
-        detector_type = data.get('detector', 'opencv')
-        confidence_threshold = float(data.get('confidence', 0.5))
+        training_state['status'] = 'extracting'
+        training_state['progress'] = 0
+        training_state['message'] = 'Loading models...'
         
         # Load face detector
         print("[INFO] Loading face detector...")
@@ -174,11 +176,24 @@ def extract_embeddings():
         print("[INFO] Loading face recognizer...")
         embedder = cv2.dnn.readNetFromTorch(EMBEDDER_PATH)
         
+        # Count total images first
+        total_images = 0
+        for user_folder in os.listdir(DATASET_DIR):
+            user_path = os.path.join(DATASET_DIR, user_folder)
+            if not os.path.isdir(user_path):
+                continue
+            for image_name in os.listdir(user_path):
+                if image_name.endswith(('.png', '.jpg', '.jpeg')):
+                    total_images += 1
+        
         # Initialize lists
         known_embeddings = []
         known_names = []
-        total_images = 0
+        processed_images = 0
         failed_images = 0
+        users_set = set()
+        
+        training_state['message'] = f'Processing {total_images} images...'
         
         # Loop over dataset
         print("[INFO] Quantifying faces...")
@@ -186,13 +201,20 @@ def extract_embeddings():
             user_path = os.path.join(DATASET_DIR, user_folder)
             if not os.path.isdir(user_path):
                 continue
+            
+            users_set.add(user_folder)
                 
             for image_name in os.listdir(user_path):
                 if not image_name.endswith(('.png', '.jpg', '.jpeg')):
                     continue
                     
                 image_path = os.path.join(user_path, image_name)
-                total_images += 1
+                processed_images += 1
+                
+                # Update progress
+                progress = int((processed_images / total_images) * 100)
+                training_state['progress'] = progress
+                training_state['message'] = f'Processing image {processed_images}/{total_images}'
                 
                 # Load image
                 image = cv2.imread(image_path)
@@ -240,6 +262,7 @@ def extract_embeddings():
                     failed_images += 1
         
         # Save embeddings
+        training_state['message'] = 'Saving embeddings...'
         print("[INFO] Serializing embeddings...")
         data = {
             "embeddings": known_embeddings,
@@ -251,42 +274,102 @@ def extract_embeddings():
         # Save embeddings map
         embeddings_map = {
             'total_embeddings': len(known_embeddings),
-            'unique_users': len(set(known_names)),
+            'unique_users': len(users_set),
             'timestamp': datetime.now().isoformat()
         }
         with open(os.path.join(OUTPUT_DIR, 'embeddings_map.json'), 'w') as f:
             json.dump(embeddings_map, f, indent=2)
         
+        training_state['status'] = 'completed'
+        training_state['progress'] = 100
+        training_state['embeddings_count'] = len(known_embeddings)
+        training_state['users_processed'] = len(users_set)
+        training_state['message'] = f'Extracted {len(known_embeddings)} embeddings from {len(users_set)} users'
+        
+        print(f"[INFO] Extraction completed: {len(known_embeddings)} embeddings from {len(users_set)} users")
+        
+    except Exception as e:
+        print(f"[ERROR] Extraction failed: {str(e)}")
+        training_state['status'] = 'failed'
+        training_state['message'] = str(e)
+
+@app.route('/api/train/extract-embeddings', methods=['POST'])
+def extract_embeddings():
+    global training_state
+    
+    try:
+        # Check if already running
+        if training_state['status'] in ['extracting', 'training']:
+            return jsonify({
+                'success': False,
+                'error': f'Training already in progress: {training_state["status"]}'
+            }), 400
+        
+        data = request.json or {}
+        confidence_threshold = float(data.get('confidence', 0.5))
+        
+        # Reset state
+        training_state = {
+            'status': 'extracting',
+            'progress': 0,
+            'message': 'Starting extraction...',
+            'embeddings_count': 0,
+            'users_processed': 0,
+            'accuracy': None,
+            'model_version': None
+        }
+        
+        # Start background thread
+        thread = threading.Thread(target=_extract_embeddings_worker, args=(confidence_threshold,))
+        thread.daemon = True
+        thread.start()
+        
         return jsonify({
             'success': True,
-            'embeddings_extracted': len(known_embeddings),
-            'failed': failed_images,
-            'output_file': EMBEDDINGS_PATH
+            'message': 'Extraction started in background'
         })
+        
     except Exception as e:
         print(f"[ERROR] {str(e)}")
+        training_state['status'] = 'failed'
+        training_state['message'] = str(e)
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/train/model', methods=['POST'])
-def train_model():
+def _train_model_worker():
+    """Background worker for model training"""
+    global training_state
+    
     try:
         from sklearn.preprocessing import LabelEncoder
         from sklearn.svm import SVC
+        
+        training_state['status'] = 'training'
+        training_state['progress'] = 0
+        training_state['message'] = 'Loading embeddings...'
         
         # Load embeddings
         print("[INFO] Loading embeddings...")
         with open(EMBEDDINGS_PATH, "rb") as f:
             data = pickle.load(f)
         
+        training_state['progress'] = 30
+        training_state['message'] = 'Encoding labels...'
+        
         # Encode labels
         print("[INFO] Encoding labels...")
         le = LabelEncoder()
         labels = le.fit_transform(data["names"])
         
+        training_state['progress'] = 50
+        training_state['message'] = 'Training SVM model...'
+        
         # Train model
         print("[INFO] Training model...")
         recognizer = SVC(C=1.0, kernel="linear", probability=True)
         recognizer.fit(data["embeddings"], labels)
+        
+        training_state['progress'] = 80
+        training_state['message'] = 'Saving model...'
         
         # Save model and label encoder
         with open(RECOGNIZER_PATH, "wb") as f:
@@ -294,46 +377,115 @@ def train_model():
         with open(LE_PATH, "wb") as f:
             pickle.dump(le, f)
         
+        # Generate model version
+        model_version = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        training_state['status'] = 'completed'
+        training_state['progress'] = 100
+        training_state['accuracy'] = 0.95  # Would need test set for real accuracy
+        training_state['model_version'] = model_version
+        training_state['message'] = f'Model trained successfully (version {model_version})'
+        
+        print(f"[INFO] Training completed: model version {model_version}")
+        
+    except Exception as e:
+        print(f"[ERROR] Training failed: {str(e)}")
+        training_state['status'] = 'failed'
+        training_state['message'] = str(e)
+
+@app.route('/api/train/model', methods=['POST'])
+def train_model():
+    global training_state
+    
+    try:
+        # Check if already running
+        if training_state['status'] in ['extracting', 'training']:
+            return jsonify({
+                'success': False,
+                'error': f'Training already in progress: {training_state["status"]}'
+            }), 400
+        
+        # Check if embeddings exist
+        if not os.path.exists(EMBEDDINGS_PATH):
+            return jsonify({
+                'success': False,
+                'error': 'No embeddings found. Please extract embeddings first.'
+            }), 400
+        
+        # Reset state
+        training_state = {
+            'status': 'training',
+            'progress': 0,
+            'message': 'Starting model training...',
+            'embeddings_count': training_state.get('embeddings_count', 0),
+            'users_processed': training_state.get('users_processed', 0),
+            'accuracy': None,
+            'model_version': None
+        }
+        
+        # Start background thread
+        thread = threading.Thread(target=_train_model_worker)
+        thread.daemon = True
+        thread.start()
+        
         return jsonify({
             'success': True,
-            'accuracy': 0.95,  # Would need test set for real accuracy
-            'model_file': RECOGNIZER_PATH,
-            'label_encoder': LE_PATH
+            'message': 'Training started in background'
         })
+        
     except Exception as e:
         print(f"[ERROR] {str(e)}")
+        training_state['status'] = 'failed'
+        training_state['message'] = str(e)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/train/status', methods=['GET'])
 def get_training_status():
+    global training_state
+    
     try:
-        embeddings_exist = os.path.exists(EMBEDDINGS_PATH)
-        model_exists = os.path.exists(RECOGNIZER_PATH)
+        # Return current training state
+        response = {
+            'status': training_state['status'],
+            'progress': training_state['progress'],
+            'message': training_state['message']
+        }
         
-        embeddings_count = 0
-        users_count = 0
+        # Add additional info if available
+        if training_state.get('embeddings_count'):
+            response['embeddings_count'] = training_state['embeddings_count']
+        if training_state.get('users_processed'):
+            response['users_processed'] = training_state['users_processed']
+        if training_state.get('accuracy'):
+            response['accuracy'] = training_state['accuracy']
+        if training_state.get('model_version'):
+            response['model_version'] = training_state['model_version']
         
-        if embeddings_exist:
-            with open(EMBEDDINGS_PATH, "rb") as f:
-                data = pickle.load(f)
-                embeddings_count = len(data["embeddings"])
-                users_count = len(set(data["names"]))
+        # If idle, check for existing files to provide additional context
+        if training_state['status'] == 'idle':
+            embeddings_exist = os.path.exists(EMBEDDINGS_PATH)
+            model_exists = os.path.exists(RECOGNIZER_PATH)
+            
+            if embeddings_exist:
+                try:
+                    with open(EMBEDDINGS_PATH, "rb") as f:
+                        data = pickle.load(f)
+                        response['embeddings_count'] = len(data["embeddings"])
+                        response['users_count'] = len(set(data["names"]))
+                except:
+                    pass
+            
+            if model_exists:
+                response['message'] = 'Model ready for recognition'
+            elif embeddings_exist:
+                response['message'] = 'Embeddings ready, can train model'
+            else:
+                response['message'] = 'Ready to extract embeddings'
         
-        status = "idle"
-        if model_exists:
-            status = "complete"
-        elif embeddings_exist:
-            status = "embeddings_ready"
-        
-        return jsonify({
-            'status': status,
-            'progress': 100 if model_exists else (50 if embeddings_exist else 0),
-            'current_step': 'Ready for recognition' if model_exists else 'Ready to train model' if embeddings_exist else 'Ready to extract embeddings',
-            'embeddings_count': embeddings_count,
-            'users_count': users_count
-        })
+        return jsonify(response)
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        print(f"[ERROR] Status check failed: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/recognize/image', methods=['POST'])
 def recognize_image():
