@@ -44,29 +44,21 @@ export default function InstitutionManagement() {
         },
       });
 
-      // Handle 409 user exists error
-      if (error) {
-        if (error.message?.includes('user_exists') || error.message?.includes('already exists')) {
-          toast.error('A user with this email already exists. Please use a different email address.');
-          setLoading(false);
-          return;
-        }
-        throw error;
+      // Check for error in response data first (this handles 409 errors)
+      if (data?.error || data?.code === 'user_exists') {
+        toast.error(data.error || 'A user with this email already exists. Please use a different email address.');
+        return;
       }
-      
-      // Check for error in response data
-      if (data?.error) {
-        if (data?.code === 'user_exists') {
-          toast.error(data.error);
-        } else {
-          throw new Error(data.error);
-        }
-        setLoading(false);
+
+      // Handle network/connection errors
+      if (error) {
+        console.error('Network error:', error);
+        toast.error('Failed to create institution admin. Please try again.');
         return;
       }
 
       // Check if email was sent by the edge function
-      if (data.emailSent) {
+      if (data?.emailSent) {
         toast.success(`Institution admin created successfully! Credentials sent to ${formData.email}`);
       } else {
         toast.success('Institution admin created successfully!');
@@ -76,7 +68,13 @@ export default function InstitutionManagement() {
       setFormData({ email: '', name: '', institute: '' });
     } catch (error: any) {
       console.error('Error creating institution admin:', error);
-      toast.error(error.message || 'Failed to create institution admin');
+      // Handle any unexpected errors gracefully
+      const errorMessage = error?.message || 'An unexpected error occurred';
+      if (errorMessage.includes('user_exists') || errorMessage.includes('already exists')) {
+        toast.error('A user with this email already exists. Please use a different email address.');
+      } else {
+        toast.error('Failed to create institution admin. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
