@@ -35,6 +35,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Creating user:", { email, name, role });
 
+    // Check if user already exists
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const userExists = existingUsers?.users.some(user => user.email === email);
+
+    if (userExists) {
+      console.log("User already exists:", email);
+      return new Response(
+        JSON.stringify({ 
+          error: "A user with this email already exists. Please use a different email address.",
+          code: "user_exists"
+        }),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
     // Generate a random password
     const password = crypto.randomUUID().slice(0, 12);
 

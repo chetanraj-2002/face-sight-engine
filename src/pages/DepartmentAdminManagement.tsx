@@ -33,6 +33,16 @@ export default function DepartmentAdminManagement() {
       });
 
       if (error) throw error;
+      
+      // Check for error in response data
+      if (data?.error) {
+        if (data?.code === 'user_exists') {
+          toast.error(data.error);
+        } else {
+          throw new Error(data.error);
+        }
+        return;
+      }
 
       toast.success(`Department admin added successfully! Credentials sent to ${formData.email}`);
       setFormData({ email: '', name: '', department: '' });

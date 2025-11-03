@@ -38,6 +38,16 @@ export default function UserManagement() {
       });
 
       if (error) throw error;
+      
+      // Check for error in response data
+      if (data?.error) {
+        if (data?.code === 'user_exists') {
+          toast.error(data.error);
+        } else {
+          throw new Error(data.error);
+        }
+        return;
+      }
 
       toast.success(`${formData.role === 'faculty' ? 'Faculty' : 'Student'} added successfully! Credentials sent to ${formData.email}`);
       setFormData({ email: '', name: '', usn: '', class: '', role: 'student' });
