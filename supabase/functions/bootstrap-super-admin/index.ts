@@ -67,37 +67,45 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Super admin created successfully:", authData.user.id);
 
-    // Send credentials email
-    const emailResponse = await resend.emails.send({
-      from: "Face Recognition System <onboarding@resend.dev>",
-      to: [email],
-      subject: "Your Super Admin Credentials",
-      html: `
-        <h1>Welcome to Face Recognition Attendance System!</h1>
-        <p>Hello ${name},</p>
-        <p>You have been set up as the <strong>SUPER ADMINISTRATOR</strong> of the system.</p>
-        <h2>Your Login Credentials:</h2>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Password:</strong> ${password}</p>
-        <p>Please login and change your password immediately.</p>
-        <h3>Your Responsibilities:</h3>
-        <ul>
-          <li>Manage institutions and their administrators</li>
-          <li>Monitor system health and recognition model performance</li>
-          <li>Configure system-wide settings</li>
-        </ul>
-        <br>
-        <p>Best regards,<br>Face Recognition Attendance Team</p>
-      `,
-    });
-
-    console.log("Email sent:", emailResponse);
+    // Try to send credentials email (non-critical)
+    let emailSent = false;
+    try {
+      const emailResponse = await resend.emails.send({
+        from: "Face Recognition System <onboarding@resend.dev>",
+        to: [email],
+        subject: "Your Super Admin Credentials",
+        html: `
+          <h1>Welcome to Face Recognition Attendance System!</h1>
+          <p>Hello ${name},</p>
+          <p>You have been set up as the <strong>SUPER ADMINISTRATOR</strong> of the system.</p>
+          <h2>Your Login Credentials:</h2>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Password:</strong> ${password}</p>
+          <p>Please login and change your password immediately.</p>
+          <h3>Your Responsibilities:</h3>
+          <ul>
+            <li>Manage institutions and their administrators</li>
+            <li>Monitor system health and recognition model performance</li>
+            <li>Configure system-wide settings</li>
+          </ul>
+          <br>
+          <p>Best regards,<br>Face Recognition Attendance Team</p>
+        `,
+      });
+      console.log("Email sent successfully:", emailResponse);
+      emailSent = true;
+    } catch (emailError: any) {
+      console.error("Failed to send email (non-critical):", emailError);
+      // Continue anyway - credentials will be shown on screen
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         userId: authData.user.id,
-        email: authData.user.email 
+        email: authData.user.email,
+        password: password,
+        emailSent: emailSent
       }),
       {
         status: 200,

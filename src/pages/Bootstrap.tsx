@@ -13,6 +13,7 @@ export default function Bootstrap() {
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [created, setCreated] = useState(false);
+  const [credentials, setCredentials] = useState<{ email: string; password: string; emailSent: boolean } | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -52,12 +53,18 @@ export default function Bootstrap() {
 
       if (error) throw error;
 
+      setCredentials({
+        email: data.email,
+        password: data.password,
+        emailSent: data.emailSent
+      });
       setCreated(true);
-      toast.success(`Super admin created! Check ${formData.email} for login credentials.`);
       
-      setTimeout(() => {
-        navigate('/auth');
-      }, 3000);
+      if (data.emailSent) {
+        toast.success('Super admin created! Credentials shown below and sent to email.');
+      } else {
+        toast.warning('Super admin created! Email failed to send - save credentials shown below.');
+      }
     } catch (error: any) {
       console.error('Error creating super admin:', error);
       toast.error(error.message || 'Failed to create super admin');
@@ -66,20 +73,76 @@ export default function Bootstrap() {
     }
   };
 
-  if (created) {
+  if (created && credentials) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <Shield className="h-16 w-16 mx-auto text-primary" />
-              <h2 className="text-2xl font-bold">Super Admin Created!</h2>
-              <p className="text-muted-foreground">
-                Login credentials have been sent to {formData.email}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Redirecting to login page...
-              </p>
+            <div className="space-y-6">
+              <div className="text-center">
+                <Shield className="h-16 w-16 mx-auto text-primary mb-4" />
+                <h2 className="text-2xl font-bold">Super Admin Created!</h2>
+              </div>
+
+              <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-4">
+                <p className="text-sm font-semibold text-destructive mb-2">⚠️ IMPORTANT - Save These Credentials Now!</p>
+                <p className="text-xs text-muted-foreground">
+                  This is the only time you'll see this password. Copy it now before leaving this page.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input value={credentials.email} readOnly className="font-mono text-sm" />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(credentials.email);
+                        toast.success('Email copied!');
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs text-muted-foreground">Password</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input value={credentials.password} readOnly className="font-mono text-sm" />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(credentials.password);
+                        toast.success('Password copied!');
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {credentials.emailSent ? (
+                <div className="bg-primary/10 border border-primary/50 rounded-lg p-3 text-sm text-center">
+                  ✓ Credentials also sent to {credentials.email}
+                </div>
+              ) : (
+                <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-3 text-sm text-center">
+                  ⚠️ Email failed to send - make sure to copy credentials above
+                </div>
+              )}
+
+              <Button 
+                onClick={() => navigate('/auth')} 
+                className="w-full"
+              >
+                Go to Login
+              </Button>
             </div>
           </CardContent>
         </Card>
