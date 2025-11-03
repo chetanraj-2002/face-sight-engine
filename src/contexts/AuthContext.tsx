@@ -3,7 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-type AppRole = 'super_admin' | 'institute_admin' | 'department_admin' | 'student';
+type AppRole = 'super_admin' | 'institute_admin' | 'department_admin' | 'faculty' | 'student';
 
 interface Profile {
   id: string;
@@ -12,6 +12,7 @@ interface Profile {
   email: string | null;
   department: string | null;
   institute: string | null;
+  class: string | null;
   role: AppRole;
 }
 
@@ -20,7 +21,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, userData: { name: string; usn?: string; department?: string; institute?: string; role?: AppRole }) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, userData: { name: string; usn?: string; department?: string; institute?: string; class?: string; role?: AppRole }) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   hasRole: (role: AppRole) => boolean;
@@ -76,7 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, userData: { name: string; usn?: string; department?: string; institute?: string; role?: AppRole }) => {
+  const signUp = async (email: string, password: string, userData: { name: string; usn?: string; department?: string; institute?: string; class?: string; role?: AppRole }) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -89,6 +90,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           usn: userData.usn,
           department: userData.department,
           institute: userData.institute,
+          class: userData.class,
           role: userData.role || 'student'
         }
       }

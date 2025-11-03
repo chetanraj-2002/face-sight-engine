@@ -24,7 +24,8 @@ export default function Auth() {
   const [usn, setUsn] = useState('');
   const [department, setDepartment] = useState('');
   const [institute, setInstitute] = useState('');
-  const [role, setRole] = useState<'student' | 'department_admin' | 'institute_admin' | 'super_admin'>('student');
+  const [role, setRole] = useState<'student' | 'faculty' | 'department_admin' | 'institute_admin' | 'super_admin'>('student');
+  const [classField, setClassField] = useState('');
 
   // Redirect if already logged in
   if (user) {
@@ -50,6 +51,7 @@ export default function Auth() {
       usn: usn || undefined,
       department: department || undefined,
       institute: institute || undefined,
+      class: classField || undefined,
       role
     });
     setLoading(false);
@@ -166,12 +168,24 @@ export default function Auth() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="student">Student</SelectItem>
+                      <SelectItem value="faculty">Faculty</SelectItem>
                       <SelectItem value="department_admin">Department Admin</SelectItem>
                       <SelectItem value="institute_admin">Institute Admin</SelectItem>
                       <SelectItem value="super_admin">Super Admin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {(role === 'faculty' || role === 'student') && (
+                  <div>
+                    <Label htmlFor="class">Class {role === 'faculty' ? '(Class you teach)' : ''}</Label>
+                    <Input
+                      id="class"
+                      value={classField}
+                      onChange={(e) => setClassField(e.target.value)}
+                      placeholder="e.g., 3rd Year CS-A"
+                    />
+                  </div>
+                )}
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Creating Account...' : 'Create Account'}
                 </Button>
