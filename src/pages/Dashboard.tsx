@@ -1,164 +1,192 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { 
-  Users, 
-  Database, 
-  Brain, 
-  Eye, 
-  Activity, 
-  TrendingUp,
-  Clock,
-  CheckCircle
-} from "lucide-react";
-
-const stats = [
-  {
-    title: "Total Users",
-    value: "247",
-    change: "+12%",
-    icon: Users,
-    color: "text-blue-500"
-  },
-  {
-    title: "Face Images",
-    value: "3,892",
-    change: "+8%",
-    icon: Database,
-    color: "text-green-500"
-  },
-  {
-    title: "Model Accuracy",
-    value: "97.8%",
-    change: "+0.3%",
-    icon: Brain,
-    color: "text-purple-500"
-  },
-  {
-    title: "Recognitions Today",
-    value: "1,456",
-    change: "+23%",
-    icon: Eye,
-    color: "text-cyan-500"
-  }
-];
-
-const recentActivity = [
-  { user: "John Doe", action: "Face recognized", time: "2 min ago", status: "success" },
-  { user: "Jane Smith", action: "New face added", time: "5 min ago", status: "info" },
-  { user: "Mike Johnson", action: "Recognition failed", time: "8 min ago", status: "warning" },
-  { user: "Sarah Wilson", action: "Face recognized", time: "12 min ago", status: "success" },
-];
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, Image, Brain, UserCheck, Building, GraduationCap } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
 
 export default function Dashboard() {
+  const { profile, hasRole } = useAuth();
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalImages: 0,
+    recentRecognitions: 0,
+    todayAttendance: 0,
+    totalInstitutes: 0,
+    totalDepartments: 0,
+  });
+
+  useEffect(() => {
+    if (profile) {
+      fetchStats();
+    }
+  }, [profile]);
+
+  const fetchStats = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Base queries that will be filtered based on role
+    let usersQuery = supabase.from('users').select('*', { count: 'exact', head: true });
+    let imagesQuery = supabase.from('face_images').select('*', { count: 'exact', head: true });
+    let recognitionsQuery = supabase.from('recognition_history').select('*', { count: 'exact', head: true }).gte('timestamp', yesterday.toISOString());
+    let attendanceQuery = supabase.from('attendance_logs').select('*', { count: 'exact', head: true }).gte('timestamp', today.toISOString());
+
+    // Apply role-based filters
+    if (hasRole('department_admin') && profile?.department) {
+      usersQuery = usersQuery.eq('class', profile.department);
+      attendanceQuery = attendanceQuery.eq('class', profile.department);
+    }
+
+    // Execute queries
+    const [usersCount, imagesCount, recognitionsCount, attendanceCount] = await Promise.all([
+      usersQuery,
+      imagesQuery,
+      recognitionsQuery,
+      attendanceQuery,
+    ]);
+
+    // Get unique institutes and departments for super admin
+    let totalInstitutes = 0;
+    let totalDepartments = 0;
+    
+    if (hasRole('super_admin')) {
+      const { data: profiles } = await supabase.from('profiles').select('institute, department');
+      if (profiles) {
+        totalInstitutes = new Set(profiles.map(p => p.institute).filter(Boolean)).size;
+        totalDepartments = new Set(profiles.map(p => p.department).filter(Boolean)).size;
+      }
+    }
+
+    setStats({
+      totalUsers: usersCount.count || 0,
+      totalImages: imagesCount.count || 0,
+      recentRecognitions: recognitionsCount.count || 0,
+      todayAttendance: attendanceCount.count || 0,
+      totalInstitutes,
+      totalDepartments,
+    });
+  };
+
+  const getRoleDisplay = () => {
+    if (!profile) return 'User';
+    return profile.role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            Monitor your face recognition system performance and activity
-          </p>
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">Overview of your face recognition system</p>
         </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={stat.title} className="bg-gradient-card shadow-card border-border/50">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {stat.title}
-                  </CardTitle>
-                  <Icon className={cn("h-4 w-4", stat.color)} />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                  <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                    <TrendingUp className="h-3 w-3 text-green-500" />
-                    <span>{stat.change} from last month</span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Model Training Status */}
-          <Card className="bg-gradient-card shadow-card border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-foreground">
-                <Brain className="h-5 w-5 text-primary" />
-                <span>Model Training Status</span>
-              </CardTitle>
-              <CardDescription>Current training progress and metrics</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Training Progress</span>
-                  <span className="text-foreground font-medium">78%</span>
-                </div>
-                <Progress value={78} className="h-2" />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Epochs</p>
-                  <p className="text-lg font-semibold text-foreground">156/200</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Loss</p>
-                  <p className="text-lg font-semibold text-foreground">0.023</p>
-                </div>
-              </div>
-              
-              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                <Activity className="h-3 w-3 mr-1" />
-                Training in progress
-              </Badge>
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity */}
-          <Card className="bg-gradient-card shadow-card border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-foreground">
-                <Clock className="h-5 w-5 text-primary" />
-                <span>Recent Activity</span>
-              </CardTitle>
-              <CardDescription>Latest face recognition events</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className={cn(
-                        "w-2 h-2 rounded-full",
-                        activity.status === "success" && "bg-green-500",
-                        activity.status === "info" && "bg-blue-500",
-                        activity.status === "warning" && "bg-yellow-500"
-                      )} />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{activity.user}</p>
-                        <p className="text-xs text-muted-foreground">{activity.action}</p>
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{activity.time}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Badge variant="secondary" className="text-sm">
+          {getRoleDisplay()}
+        </Badge>
       </div>
+
+      {profile && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Welcome, {profile.name}</CardTitle>
+            <CardDescription>
+              {profile.department && `${profile.department}`}
+              {profile.institute && ` - ${profile.institute}`}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {hasRole('super_admin') && (
+          <>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Institutes</CardTitle>
+                <Building className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalInstitutes}</div>
+                <p className="text-xs text-muted-foreground">Registered institutes</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Departments</CardTitle>
+                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalDepartments}</div>
+                <p className="text-xs text-muted-foreground">Across all institutes</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalUsers}</div>
+            <p className="text-xs text-muted-foreground">
+              {hasRole('department_admin') ? 'In your department' : 'Registered in system'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Face Images</CardTitle>
+            <Image className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalImages}</div>
+            <p className="text-xs text-muted-foreground">Training dataset</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Recent Recognitions</CardTitle>
+            <Brain className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.recentRecognitions}</div>
+            <p className="text-xs text-muted-foreground">Last 24 hours</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.todayAttendance}</div>
+            <p className="text-xs text-muted-foreground">Students marked present</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Common tasks based on your role</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground">
+            {hasRole('super_admin') && <p>• Manage all institutes, departments, and users</p>}
+            {hasRole('institute_admin') && <p>• Manage your institute's departments and users</p>}
+            {hasRole('department_admin') && <p>• Manage your department's students and attendance</p>}
+            {hasRole('student') && <p>• View your attendance records</p>}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
-}
-
-function cn(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
 }
