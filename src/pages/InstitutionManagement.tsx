@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Building2, UserPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { sendCredentialsEmail } from '@/lib/emailService';
 
 export default function InstitutionManagement() {
   const { profile } = useAuth();
@@ -52,7 +53,23 @@ export default function InstitutionManagement() {
         return;
       }
 
-      toast.success(`Institution admin added successfully! Credentials sent to ${formData.email}`);
+      // Send credentials email via EmailJS from frontend
+      const emailResult = await sendCredentialsEmail(
+        formData.email,
+        formData.name,
+        data.password,
+        'INSTITUTE ADMINISTRATOR'
+      );
+
+      if (emailResult.success) {
+        toast.success(`Institution admin created successfully! Credentials sent to ${formData.email}`);
+      } else {
+        toast.success(`Institution admin created! Email: ${formData.email}, Password: ${data.password}`, {
+          duration: 10000,
+        });
+        toast.warning('Email sending failed. Please share credentials manually.');
+      }
+      
       setFormData({ email: '', name: '', institute: '' });
     } catch (error: any) {
       console.error('Error creating institution admin:', error);

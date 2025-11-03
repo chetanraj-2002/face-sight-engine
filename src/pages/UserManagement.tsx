@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { UserPlus, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { sendCredentialsEmail } from '@/lib/emailService';
 
 export default function UserManagement() {
   const { profile } = useAuth();
@@ -58,7 +59,23 @@ export default function UserManagement() {
         return;
       }
 
-      toast.success(`${formData.role === 'faculty' ? 'Faculty' : 'Student'} added successfully! Credentials sent to ${formData.email}`);
+      // Send credentials email via EmailJS from frontend
+      const emailResult = await sendCredentialsEmail(
+        formData.email,
+        formData.name,
+        data.password,
+        formData.role === 'faculty' ? 'FACULTY' : 'STUDENT'
+      );
+
+      if (emailResult.success) {
+        toast.success(`${formData.role === 'faculty' ? 'Faculty' : 'Student'} created successfully! Credentials sent to ${formData.email}`);
+      } else {
+        toast.success(`${formData.role === 'faculty' ? 'Faculty' : 'Student'} created! Email: ${formData.email}, Password: ${data.password}`, {
+          duration: 10000,
+        });
+        toast.warning('Email sending failed. Please share credentials manually.');
+      }
+      
       setFormData({ email: '', name: '', usn: '', class: '', role: 'student' });
     } catch (error: any) {
       console.error('Error creating user:', error);
