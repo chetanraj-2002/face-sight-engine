@@ -103,6 +103,36 @@ export type Database = {
         }
         Relationships: []
       }
+      dataset_quality_checks: {
+        Row: {
+          check_type: string
+          checked_at: string
+          details: Json | null
+          id: string
+          status: string
+          user_id: string | null
+          usn: string | null
+        }
+        Insert: {
+          check_type: string
+          checked_at?: string
+          details?: Json | null
+          id?: string
+          status: string
+          user_id?: string | null
+          usn?: string | null
+        }
+        Update: {
+          check_type?: string
+          checked_at?: string
+          details?: Json | null
+          id?: string
+          status?: string
+          user_id?: string | null
+          usn?: string | null
+        }
+        Relationships: []
+      }
       face_images: {
         Row: {
           id: string
@@ -134,6 +164,119 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      model_experiments: {
+        Row: {
+          description: string | null
+          ended_at: string | null
+          id: string
+          is_active: boolean | null
+          model_a_version: string | null
+          model_b_version: string | null
+          name: string
+          results: Json | null
+          started_at: string
+          traffic_split_a: number | null
+          traffic_split_b: number | null
+        }
+        Insert: {
+          description?: string | null
+          ended_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          model_a_version?: string | null
+          model_b_version?: string | null
+          name: string
+          results?: Json | null
+          started_at?: string
+          traffic_split_a?: number | null
+          traffic_split_b?: number | null
+        }
+        Update: {
+          description?: string | null
+          ended_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          model_a_version?: string | null
+          model_b_version?: string | null
+          name?: string
+          results?: Json | null
+          started_at?: string
+          traffic_split_a?: number | null
+          traffic_split_b?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_experiments_model_a_version_fkey"
+            columns: ["model_a_version"]
+            isOneToOne: false
+            referencedRelation: "model_versions"
+            referencedColumns: ["version"]
+          },
+          {
+            foreignKeyName: "model_experiments_model_b_version_fkey"
+            columns: ["model_b_version"]
+            isOneToOne: false
+            referencedRelation: "model_versions"
+            referencedColumns: ["version"]
+          },
+        ]
+      }
+      model_versions: {
+        Row: {
+          accuracy: number | null
+          created_at: string
+          deployed_at: string | null
+          deprecated_at: string | null
+          embeddings_count: number | null
+          id: string
+          is_active: boolean | null
+          is_production: boolean | null
+          metadata: Json | null
+          model_path: string | null
+          training_job_id: string | null
+          users_count: number | null
+          version: string
+        }
+        Insert: {
+          accuracy?: number | null
+          created_at?: string
+          deployed_at?: string | null
+          deprecated_at?: string | null
+          embeddings_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_production?: boolean | null
+          metadata?: Json | null
+          model_path?: string | null
+          training_job_id?: string | null
+          users_count?: number | null
+          version: string
+        }
+        Update: {
+          accuracy?: number | null
+          created_at?: string
+          deployed_at?: string | null
+          deprecated_at?: string | null
+          embeddings_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_production?: boolean | null
+          metadata?: Json | null
+          model_path?: string | null
+          training_job_id?: string | null
+          users_count?: number | null
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_versions_training_job_id_fkey"
+            columns: ["training_job_id"]
+            isOneToOne: false
+            referencedRelation: "training_jobs"
             referencedColumns: ["id"]
           },
         ]
