@@ -60,13 +60,14 @@ export default function InstitutionManagement() {
         return;
       }
 
-      // Check if email was sent by the edge function
-      if (data?.emailSent) {
-        toast.success(`Institution admin created successfully! Credentials sent to ${formData.email}`);
-      } else {
-        toast.success('Institution admin created successfully!');
-        toast.warning('Email sending failed. Please share credentials manually.');
-      }
+      // Display credentials immediately
+      toast.success('Institution admin created successfully!', {
+        duration: 10000,
+      });
+      toast.info(`Email: ${data.email}\nPassword: ${data.password}`, {
+        duration: 30000,
+        description: 'Please save these credentials. They will not be shown again.',
+      });
       
       setFormData({ email: '', name: '', institute: '' });
     } catch (error: any) {

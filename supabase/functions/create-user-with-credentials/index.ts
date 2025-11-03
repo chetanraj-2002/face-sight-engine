@@ -143,6 +143,7 @@ const handler = async (req: Request): Promise<Response> => {
         success: true, 
         userId: authData.user.id,
         email: authData.user.email,
+        password: password,
         emailSent: emailSent
       }),
       {
