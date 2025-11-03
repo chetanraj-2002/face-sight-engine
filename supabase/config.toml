@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.reset-bootstrap]
 verify_jwt = false
+
+[functions.delete-institute-admins]
+verify_jwt = true

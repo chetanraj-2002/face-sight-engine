@@ -5,13 +5,25 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Building2, UserPlus } from 'lucide-react';
+import { Building2, UserPlus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { sendCredentialsEmail } from '@/lib/emailService';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function InstitutionManagement() {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -76,6 +88,29 @@ export default function InstitutionManagement() {
       toast.error(error.message || 'Failed to create institution admin');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAllInstituteAdmins = async () => {
+    setDeleteLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-institute-admins');
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast.success(data.message || 'All institute administrators deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting institute admins:', error);
+      toast.error(error.message || 'Failed to delete institute administrators');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -167,6 +202,51 @@ export default function InstitutionManagement() {
           <p className="text-sm text-muted-foreground">
             Model health monitoring and recognition improvement features will be available here.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <Trash2 className="h-5 w-5" />
+            Danger Zone
+          </CardTitle>
+          <CardDescription>
+            Permanently delete all institution administrators
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="destructive" 
+                disabled={deleteLoading}
+                className="w-full"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {deleteLoading ? 'Deleting...' : 'Delete All Institute Admins'}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete all institution 
+                  administrators and their associated data from the system. Department admins, 
+                  faculty, and students will not be affected.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteAllInstituteAdmins}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Yes, delete all institute admins
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     </div>
