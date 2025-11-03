@@ -101,9 +101,22 @@ serve(async (req) => {
 
     console.log(`Prepared ${totalImagesSynced} images for sync`);
 
+    // Check if there's any data to sync
+    if (totalImagesSynced === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'No images to sync. Please add users and upload face images first.',
+          users_synced: 0,
+          images_synced: 0,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Send to Python API with timeout and better error handling
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
     
     let syncResponse;
     try {
