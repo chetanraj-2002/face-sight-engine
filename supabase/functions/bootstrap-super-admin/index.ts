@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const EMAILJS_SERVICE_ID = Deno.env.get("EMAILJS_SERVICE_ID");
+const EMAILJS_TEMPLATE_ID = Deno.env.get("EMAILJS_TEMPLATE_ID_CREDENTIALS");
+const EMAILJS_PUBLIC_KEY = Deno.env.get("EMAILJS_PUBLIC_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,30 +71,32 @@ const handler = async (req: Request): Promise<Response> => {
     // Try to send credentials email (non-critical)
     let emailSent = false;
     try {
-      const emailResponse = await resend.emails.send({
-        from: "Face Recognition System <onboarding@resend.dev>",
-        to: [email],
-        subject: "Your Super Admin Credentials",
-        html: `
-          <h1>Welcome to Face Recognition Attendance System!</h1>
-          <p>Hello ${name},</p>
-          <p>You have been set up as the <strong>SUPER ADMINISTRATOR</strong> of the system.</p>
-          <h2>Your Login Credentials:</h2>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Password:</strong> ${password}</p>
-          <p>Please login and change your password immediately.</p>
-          <h3>Your Responsibilities:</h3>
-          <ul>
-            <li>Manage institutions and their administrators</li>
-            <li>Monitor system health and recognition model performance</li>
-            <li>Configure system-wide settings</li>
-          </ul>
-          <br>
-          <p>Best regards,<br>Face Recognition Attendance Team</p>
-        `,
+      const emailResponse = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          service_id: EMAILJS_SERVICE_ID,
+          template_id: EMAILJS_TEMPLATE_ID,
+          user_id: EMAILJS_PUBLIC_KEY,
+          template_params: {
+            to_email: email,
+            to_name: name,
+            user_email: email,
+            user_password: password,
+            role: "SUPER ADMINISTRATOR",
+          },
+        }),
       });
-      console.log("Email sent successfully:", emailResponse);
-      emailSent = true;
+
+      if (emailResponse.ok) {
+        console.log("Email sent successfully via EmailJS");
+        emailSent = true;
+      } else {
+        const errorText = await emailResponse.text();
+        console.error("EmailJS error:", errorText);
+      }
     } catch (emailError: any) {
       console.error("Failed to send email (non-critical):", emailError);
       // Continue anyway - credentials will be shown on screen

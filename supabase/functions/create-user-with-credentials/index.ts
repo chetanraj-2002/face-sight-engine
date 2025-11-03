@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const EMAILJS_SERVICE_ID = Deno.env.get("EMAILJS_SERVICE_ID");
+const EMAILJS_TEMPLATE_ID = Deno.env.get("EMAILJS_TEMPLATE_ID_CREDENTIALS");
+const EMAILJS_PUBLIC_KEY = Deno.env.get("EMAILJS_PUBLIC_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,31 +61,44 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("User created successfully:", authData.user.id);
 
     // Send credentials email
-    const emailResponse = await resend.emails.send({
-      from: "Face Recognition System <onboarding@resend.dev>",
-      to: [email],
-      subject: "Your Account Credentials",
-      html: `
-        <h1>Welcome to Face Recognition Attendance System!</h1>
-        <p>Hello ${name},</p>
-        <p>Your account has been created with the role: <strong>${role.replace('_', ' ').toUpperCase()}</strong></p>
-        <h2>Your Login Credentials:</h2>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Password:</strong> ${password}</p>
-        <p>Please login at: <a href="${supabaseUrl.replace('supabase.co', 'lovable.app')}">${supabaseUrl.replace('supabase.co', 'lovable.app')}</a></p>
-        <p><strong>Important:</strong> Please change your password after your first login.</p>
-        <br>
-        <p>Best regards,<br>Face Recognition Attendance Team</p>
-      `,
-    });
+    let emailSent = false;
+    try {
+      const emailResponse = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          service_id: EMAILJS_SERVICE_ID,
+          template_id: EMAILJS_TEMPLATE_ID,
+          user_id: EMAILJS_PUBLIC_KEY,
+          template_params: {
+            to_email: email,
+            to_name: name,
+            user_email: email,
+            user_password: password,
+            role: role.replace('_', ' ').toUpperCase(),
+          },
+        }),
+      });
 
-    console.log("Email sent:", emailResponse);
+      if (emailResponse.ok) {
+        console.log("Email sent successfully via EmailJS");
+        emailSent = true;
+      } else {
+        const errorText = await emailResponse.text();
+        console.error("EmailJS error:", errorText);
+      }
+    } catch (emailError: any) {
+      console.error("Failed to send email (non-critical):", emailError);
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         userId: authData.user.id,
-        email: authData.user.email 
+        email: authData.user.email,
+        emailSent: emailSent
       }),
       {
         status: 200,
