@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 
 export default function Dashboard() {
-  const { profile, hasRole } = useAuth();
+  const { profile } = useAuth();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalImages: 0,
@@ -35,10 +35,10 @@ export default function Dashboard() {
     let attendanceQuery = supabase.from('attendance_logs').select('*', { count: 'exact', head: true }).gte('timestamp', today.toISOString());
 
     // Apply role-based filters
-    if (hasRole('faculty') && profile?.class) {
+    if (profile?.role === 'faculty' && profile?.class) {
       usersQuery = usersQuery.eq('class', profile.class);
       attendanceQuery = attendanceQuery.eq('class', profile.class);
-    } else if (hasRole('department_admin') && profile?.department) {
+    } else if (profile?.role === 'department_admin' && profile?.department) {
       usersQuery = usersQuery.eq('class', profile.department);
       attendanceQuery = attendanceQuery.eq('class', profile.department);
     }
@@ -55,7 +55,7 @@ export default function Dashboard() {
     let totalInstitutes = 0;
     let totalDepartments = 0;
     
-    if (hasRole('super_admin')) {
+    if (profile?.role === 'super_admin') {
       const { data: profiles } = await supabase.from('profiles').select('institute, department');
       if (profiles) {
         totalInstitutes = new Set(profiles.map(p => p.institute).filter(Boolean)).size;
@@ -74,7 +74,7 @@ export default function Dashboard() {
   };
 
   const getRoleDisplay = () => {
-    if (!profile) return 'User';
+    if (!profile?.role) return 'User';
     return profile.role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
@@ -104,7 +104,7 @@ export default function Dashboard() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {hasRole('super_admin') && (
+        {profile?.role === 'super_admin' && (
           <>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -138,7 +138,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalUsers}</div>
             <p className="text-xs text-muted-foreground">
-              {hasRole('faculty') ? 'In your class' : hasRole('department_admin') ? 'In your department' : 'Registered in system'}
+              {profile?.role === 'faculty' ? 'In your class' : profile?.role === 'department_admin' ? 'In your department' : 'Registered in system'}
             </p>
           </CardContent>
         </Card>
@@ -184,11 +184,11 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="text-sm text-muted-foreground">
-            {hasRole('super_admin') && <p>• Manage all institutes, departments, and users</p>}
-            {hasRole('institute_admin') && <p>• Manage your institute's departments and users</p>}
-            {hasRole('department_admin') && <p>• Manage your department's students and attendance</p>}
-            {hasRole('faculty') && <p>• Manage your class students and view attendance</p>}
-            {hasRole('student') && <p>• View your attendance records</p>}
+            {profile?.role === 'super_admin' && <p>• Manage all institutes, departments, and users</p>}
+            {profile?.role === 'institute_admin' && <p>• Manage your institute's departments and users</p>}
+            {profile?.role === 'department_admin' && <p>• Manage your department's students and attendance</p>}
+            {profile?.role === 'faculty' && <p>• Manage your class students and view attendance</p>}
+            {profile?.role === 'student' && <p>• View your attendance records</p>}
           </div>
         </CardContent>
       </Card>

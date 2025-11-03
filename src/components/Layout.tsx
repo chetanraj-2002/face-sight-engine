@@ -54,8 +54,12 @@ export default function Layout() {
           {profile && (
             <div className="text-sm text-muted-foreground">
               <span className="font-medium">{profile.name}</span>
-              {' • '}
-              <span className="capitalize">{profile.role.replace('_', ' ')}</span>
+              {profile.role && (
+                <>
+                  {' • '}
+                  <span className="capitalize">{profile.role.replace('_', ' ')}</span>
+                </>
+              )}
             </div>
           )}
           <Button variant="ghost" size="sm" onClick={signOut}>

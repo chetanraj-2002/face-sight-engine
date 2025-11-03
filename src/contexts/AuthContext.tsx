@@ -13,7 +13,7 @@ interface Profile {
   department: string | null;
   institute: string | null;
   class: string | null;
-  role: AppRole;
+  role?: AppRole; // Fetched from user_roles table
 }
 
 interface AuthContextType {
@@ -24,7 +24,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, userData: { name: string; usn?: string; department?: string; institute?: string; class?: string; role?: AppRole }) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-  hasRole: (role: AppRole) => boolean;
+  hasRole: (role: AppRole) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,14 +37,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (!error && data) {
-      setProfile(data);
+    try {
+      // Fetch profile data
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) throw profileError;
+
+      // Fetch role from user_roles table
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      if (roleError) {
+        console.error('Error fetching role:', roleError);
+      }
+
+      setProfile({
+        ...profileData,
+        role: roleData?.role as AppRole
+      });
+    } catch (error) {
+      console.error('Error fetching profile:', error);
     }
   };
 
@@ -140,8 +159,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
-  const hasRole = (role: AppRole): boolean => {
-    return profile?.role === role;
+  const hasRole = async (role: AppRole): Promise<boolean> => {
+    if (!user) return false;
+    
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', role)
+        .single();
+      
+      return !!data;
+    } catch {
+      return false;
+    }
   };
 
   return (
