@@ -31,7 +31,15 @@ export default function InstitutionManagement() {
         },
       });
 
-      if (error) throw error;
+      // Handle 409 user exists error
+      if (error) {
+        if (error.message?.includes('user_exists') || error.message?.includes('already exists')) {
+          toast.error('A user with this email already exists. Please use a different email address.');
+          setLoading(false);
+          return;
+        }
+        throw error;
+      }
       
       // Check for error in response data
       if (data?.error) {
@@ -40,6 +48,7 @@ export default function InstitutionManagement() {
         } else {
           throw new Error(data.error);
         }
+        setLoading(false);
         return;
       }
 
