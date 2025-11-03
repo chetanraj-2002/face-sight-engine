@@ -35,7 +35,10 @@ export default function Dashboard() {
     let attendanceQuery = supabase.from('attendance_logs').select('*', { count: 'exact', head: true }).gte('timestamp', today.toISOString());
 
     // Apply role-based filters
-    if (hasRole('department_admin') && profile?.department) {
+    if (hasRole('faculty') && profile?.class) {
+      usersQuery = usersQuery.eq('class', profile.class);
+      attendanceQuery = attendanceQuery.eq('class', profile.class);
+    } else if (hasRole('department_admin') && profile?.department) {
       usersQuery = usersQuery.eq('class', profile.department);
       attendanceQuery = attendanceQuery.eq('class', profile.department);
     }
@@ -92,7 +95,8 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle>Welcome, {profile.name}</CardTitle>
             <CardDescription>
-              {profile.department && `${profile.department}`}
+              {profile.class && `Class: ${profile.class}`}
+              {profile.department && ` | ${profile.department}`}
               {profile.institute && ` - ${profile.institute}`}
             </CardDescription>
           </CardHeader>
@@ -134,7 +138,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalUsers}</div>
             <p className="text-xs text-muted-foreground">
-              {hasRole('department_admin') ? 'In your department' : 'Registered in system'}
+              {hasRole('faculty') ? 'In your class' : hasRole('department_admin') ? 'In your department' : 'Registered in system'}
             </p>
           </CardContent>
         </Card>
@@ -183,6 +187,7 @@ export default function Dashboard() {
             {hasRole('super_admin') && <p>• Manage all institutes, departments, and users</p>}
             {hasRole('institute_admin') && <p>• Manage your institute's departments and users</p>}
             {hasRole('department_admin') && <p>• Manage your department's students and attendance</p>}
+            {hasRole('faculty') && <p>• Manage your class students and view attendance</p>}
             {hasRole('student') && <p>• View your attendance records</p>}
           </div>
         </CardContent>
