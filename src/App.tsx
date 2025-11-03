@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Bootstrap from "./pages/Bootstrap";
 import Dashboard from "./pages/Dashboard";
 import DatasetManagement from "./pages/DatasetManagement";
 import Training from "./pages/Training";
@@ -43,6 +44,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/bootstrap" element={<Bootstrap />} />
             <Route element={
               <ProtectedRoute>
                 <Layout />
