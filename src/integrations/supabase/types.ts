@@ -142,6 +142,39 @@ export type Database = {
         }
         Relationships: []
       }
+      dataset_backups: {
+        Row: {
+          backup_date: string | null
+          backup_folder: string | null
+          batch_number: number | null
+          created_at: string | null
+          id: string
+          images_count: number | null
+          model_version: string | null
+          users_count: number | null
+        }
+        Insert: {
+          backup_date?: string | null
+          backup_folder?: string | null
+          batch_number?: number | null
+          created_at?: string | null
+          id?: string
+          images_count?: number | null
+          model_version?: string | null
+          users_count?: number | null
+        }
+        Update: {
+          backup_date?: string | null
+          backup_folder?: string | null
+          batch_number?: number | null
+          created_at?: string | null
+          id?: string
+          images_count?: number | null
+          model_version?: string | null
+          users_count?: number | null
+        }
+        Relationships: []
+      }
       dataset_quality_checks: {
         Row: {
           check_type: string
@@ -550,6 +583,47 @@ export type Database = {
           users_processed?: number | null
         }
         Relationships: []
+      }
+      user_batch_tracking: {
+        Row: {
+          batch_number: number
+          batch_status: string | null
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          started_at: string | null
+          training_job_id: string | null
+          users_in_batch: number | null
+        }
+        Insert: {
+          batch_number: number
+          batch_status?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          started_at?: string | null
+          training_job_id?: string | null
+          users_in_batch?: number | null
+        }
+        Update: {
+          batch_number?: number
+          batch_status?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          started_at?: string | null
+          training_job_id?: string | null
+          users_in_batch?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_batch_tracking_training_job_id_fkey"
+            columns: ["training_job_id"]
+            isOneToOne: false
+            referencedRelation: "training_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

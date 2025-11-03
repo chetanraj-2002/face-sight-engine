@@ -3,12 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Upload, UserPlus, Users, Image as ImageIcon } from "lucide-react";
+import { Upload, UserPlus, Users, Image as ImageIcon, Camera } from "lucide-react";
 import { useUsers } from "@/hooks/useUsers";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import UserList from "@/components/dataset/UserList";
 import ImageUploader from "@/components/dataset/ImageUploader";
+import LiveCameraCapture from "@/components/dataset/LiveCameraCapture";
+import BatchStatusDisplay from "@/components/dataset/BatchStatusDisplay";
 
 export default function DatasetManagement() {
   const [formData, setFormData] = useState({
@@ -17,7 +20,9 @@ export default function DatasetManagement() {
     class: "",
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const { users, loading, addUser, deleteUser, stats } = useUsers();
+  const [captureMode, setCaptureMode] = useState<'manual' | 'live'>('manual');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const { users, loading, addUser, deleteUser, stats, fetchUsers } = useUsers();
   const { uploadImages, uploading } = useImageUpload();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +33,7 @@ export default function DatasetManagement() {
       return;
     }
 
-    if (selectedFiles.length === 0) {
+    if (captureMode === 'manual' && selectedFiles.length === 0) {
       toast.error("Please select at least one image");
       return;
     }
@@ -37,17 +42,29 @@ export default function DatasetManagement() {
       // Add user to database
       const userId = await addUser(formData);
 
-      // Upload images
-      await uploadImages(userId, formData.usn, selectedFiles);
-
-      toast.success(`Added ${formData.name} with ${selectedFiles.length} images`);
-
-      // Reset form
-      setFormData({ usn: "", name: "", class: "" });
-      setSelectedFiles([]);
+      if (captureMode === 'manual') {
+        // Upload images for manual mode
+        await uploadImages(userId, formData.usn, selectedFiles);
+        toast.success(`Added ${formData.name} with ${selectedFiles.length} images`);
+        
+        // Reset form
+        setFormData({ usn: "", name: "", class: "" });
+        setSelectedFiles([]);
+      } else {
+        // For live capture, store userId and wait for capture
+        setCurrentUserId(userId);
+        toast.success(`${formData.name} added. Now capture face images.`);
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to add user");
     }
+  };
+
+  const handleLiveCaptureComplete = () => {
+    // Reset form after live capture completes
+    setFormData({ usn: "", name: "", class: "" });
+    setCurrentUserId('');
+    fetchUsers();
   };
 
   const handleDelete = async (userId: string) => {
@@ -65,6 +82,9 @@ export default function DatasetManagement() {
         <h1 className="text-3xl font-bold">Dataset Management</h1>
         <p className="text-muted-foreground mt-2">Manage face images for training the recognition model</p>
       </div>
+
+      {/* Batch Status Banner */}
+      <BatchStatusDisplay />
 
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -120,6 +140,7 @@ export default function DatasetManagement() {
                   value={formData.usn}
                   onChange={(e) => setFormData({ ...formData, usn: e.target.value })}
                   required
+                  disabled={!!currentUserId}
                 />
               </div>
 
@@ -131,6 +152,7 @@ export default function DatasetManagement() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
+                  disabled={!!currentUserId}
                 />
               </div>
 
@@ -141,16 +163,59 @@ export default function DatasetManagement() {
                   placeholder="e.g., CS-A"
                   value={formData.class}
                   onChange={(e) => setFormData({ ...formData, class: e.target.value })}
+                  disabled={!!currentUserId}
                 />
               </div>
             </div>
 
-            <ImageUploader selectedFiles={selectedFiles} onFilesChange={setSelectedFiles} />
+            {!currentUserId && (
+              <>
+                <Tabs value={captureMode} onValueChange={(v) => setCaptureMode(v as 'manual' | 'live')}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="manual" className="flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      Manual Upload
+                    </TabsTrigger>
+                    <TabsTrigger value="live" className="flex items-center gap-2">
+                      <Camera className="h-4 w-4" />
+                      Live Capture (100 images)
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="manual" className="mt-4">
+                    <ImageUploader selectedFiles={selectedFiles} onFilesChange={setSelectedFiles} />
+                  </TabsContent>
+                  
+                  <TabsContent value="live" className="mt-4">
+                    <div className="bg-muted/50 p-4 rounded-lg text-sm text-muted-foreground">
+                      After adding user details, the camera will automatically capture 100 images at 2 images per second.
+                    </div>
+                  </TabsContent>
+                </Tabs>
 
-            <Button type="submit" disabled={uploading || loading} className="w-full">
-              <Upload className="mr-2 h-4 w-4" />
-              {uploading ? "Uploading..." : "Add User"}
-            </Button>
+                <Button type="submit" disabled={uploading || loading} className="w-full">
+                  {captureMode === 'manual' ? (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      {uploading ? "Uploading..." : "Add User"}
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Add User & Start Capture
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+
+            {currentUserId && (
+              <LiveCameraCapture
+                userId={currentUserId}
+                usn={formData.usn}
+                onComplete={handleLiveCaptureComplete}
+              />
+            )}
           </form>
         </CardContent>
       </Card>

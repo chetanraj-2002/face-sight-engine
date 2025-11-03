@@ -48,6 +48,20 @@ export default function Training() {
     },
   });
 
+  // Fetch batch tracking data
+  const { data: batchHistory } = useQuery({
+    queryKey: ['batch-history'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_batch_tracking')
+        .select('*')
+        .order('started_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
@@ -69,11 +83,12 @@ export default function Training() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="quality">Quality Checks</TabsTrigger>
           <TabsTrigger value="versions">Versions</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="batches">Batch Processing</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -197,6 +212,72 @@ export default function Training() {
                       </TableCell>
                     </TableRow>
                   ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="batches">
+          <Card>
+            <CardHeader>
+              <CardTitle>Batch Processing History</CardTitle>
+              <CardDescription>View automated batch training sessions (10 users per batch)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Batch #</TableHead>
+                    <TableHead>Users</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Started</TableHead>
+                    <TableHead>Completed</TableHead>
+                    <TableHead>Duration</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {batchHistory?.map((batch) => {
+                    const duration = batch.completed_at 
+                      ? Math.round((new Date(batch.completed_at).getTime() - new Date(batch.started_at).getTime()) / 1000 / 60)
+                      : null;
+                    
+                    return (
+                      <TableRow key={batch.id}>
+                        <TableCell className="font-medium">
+                          Batch {batch.batch_number}
+                        </TableCell>
+                        <TableCell>{batch.users_in_batch}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              batch.batch_status === 'completed' ? 'default' : 
+                              batch.batch_status === 'processing' ? 'secondary' : 
+                              'outline'
+                            }
+                          >
+                            {batch.batch_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(batch.started_at).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          {batch.completed_at ? new Date(batch.completed_at).toLocaleString() : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {duration ? `${duration} min` : '-'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {(!batchHistory || batchHistory.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        No batch history available yet
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

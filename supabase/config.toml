@@ -11,3 +11,15 @@ verify_jwt = false
 
 [functions.delete-institute-admins]
 verify_jwt = true
+
+[functions.get-batch-status]
+verify_jwt = true
+
+[functions.auto-capture-upload]
+verify_jwt = true
+
+[functions.backup-batch-images]
+verify_jwt = true
+
+[functions.process-pipeline]
+verify_jwt = true
