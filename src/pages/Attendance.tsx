@@ -5,7 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAttendance } from '@/hooks/useAttendance';
+import CameraCapture from '@/components/attendance/CameraCapture';
 import { Plus, Upload, Download, Clock } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -129,19 +131,50 @@ export default function Attendance() {
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <Input
-                type="file"
-                accept="image/jpeg,image/jpg,image/png"
-                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-              />
-              <Button
-                onClick={handleMarkAttendance}
-                disabled={!selectedFile || isMarking}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                {isMarking ? 'Marking...' : 'Mark Attendance'}
-              </Button>
+            <Tabs defaultValue="camera" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="camera">Camera Capture</TabsTrigger>
+                <TabsTrigger value="upload">Upload Image</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="camera" className="space-y-4">
+                <CameraCapture
+                  onCapture={(file) => {
+                    markAttendance({
+                      imageFile: file,
+                      sessionId: activeSession.session_id,
+                    });
+                  }}
+                  isProcessing={isMarking}
+                />
+              </TabsContent>
+              
+              <TabsContent value="upload" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Upload Image</CardTitle>
+                    <CardDescription>Select a group photo to mark attendance</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    />
+                    <Button
+                      onClick={handleMarkAttendance}
+                      disabled={!selectedFile || isMarking}
+                      className="w-full"
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      {isMarking ? 'Marking...' : 'Mark Attendance'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+
+            <div className="flex justify-end">
               <Button
                 variant="outline"
                 onClick={() => endSession(activeSession.session_id)}
