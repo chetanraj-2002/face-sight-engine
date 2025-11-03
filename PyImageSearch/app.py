@@ -83,18 +83,64 @@ def get_dataset_stats():
 def sync_dataset():
     try:
         data = request.json
-        supabase_url = data.get('supabase_url')
-        bucket_name = data.get('bucket_name', 'face-images')
+        if not data or 'dataset' not in data:
+            return jsonify({'success': False, 'error': 'No dataset provided'}), 400
         
-        # This would download from Supabase storage
-        # For now, return success if dataset exists
-        stats = get_dataset_stats()
+        dataset = data['dataset']
+        
+        # Clear existing dataset
+        if os.path.exists(DATASET_DIR):
+            shutil.rmtree(DATASET_DIR)
+        os.makedirs(DATASET_DIR, exist_ok=True)
+        
+        users_synced = 0
+        images_synced = 0
+        
+        # Process each image in the dataset
+        for item in dataset:
+            usn = item.get('usn')
+            name = item.get('name')
+            class_name = item.get('class')
+            image_b64 = item.get('image')
+            filename = item.get('filename')
+            
+            if not all([usn, image_b64, filename]):
+                continue
+            
+            # Create user directory
+            user_dir = os.path.join(DATASET_DIR, usn)
+            os.makedirs(user_dir, exist_ok=True)
+            
+            # Save user info
+            info_path = os.path.join(user_dir, 'info.json')
+            if not os.path.exists(info_path):
+                with open(info_path, 'w') as f:
+                    json.dump({
+                        'usn': usn,
+                        'name': name,
+                        'class': class_name
+                    }, f)
+                users_synced += 1
+            
+            # Decode and save image
+            try:
+                import base64
+                image_data = base64.b64decode(image_b64)
+                image_path = os.path.join(user_dir, filename)
+                with open(image_path, 'wb') as f:
+                    f.write(image_data)
+                images_synced += 1
+            except Exception as e:
+                print(f"Failed to save image {filename} for {usn}: {str(e)}")
+                continue
+        
         return jsonify({
             'success': True,
-            'users_synced': stats.json['total_users'],
-            'total_images': stats.json['total_images']
+            'users_synced': users_synced,
+            'images_synced': images_synced
         })
     except Exception as e:
+        print(f"[ERROR] in sync_dataset: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/dataset/backup', methods=['POST'])
