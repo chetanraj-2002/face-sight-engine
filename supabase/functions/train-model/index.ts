@@ -46,13 +46,31 @@ serve(async (req) => {
 
     console.log('Created job:', job.id);
 
-    // Trigger training on Python API
-    const trainResponse = await fetch(`${normalizedUrl}/api/train/model`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    // Trigger training on Python API with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    let trainResponse;
+    try {
+      trainResponse = await fetch(`${normalizedUrl}/api/train/model`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      await supabaseClient
+        .from('training_jobs')
+        .update({
+          status: 'failed',
+          error_message: `Cannot connect to Python API: ${fetchError.message}`,
+        })
+        .eq('id', job.id);
+      throw new Error(`Failed to connect to Python API at ${normalizedUrl}. Please ensure the server is running and accessible.`);
+    }
+    clearTimeout(timeoutId);
 
     if (!trainResponse.ok) {
       const errorText = await trainResponse.text();

@@ -40,16 +40,27 @@ serve(async (req) => {
     const arrayBuffer = await imageFile.arrayBuffer();
     const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-    // Send to Python API
-    const recognizeResponse = await fetch(`${normalizedUrl}/api/recognize/image`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        image: base64Image,
-      }),
-    });
+    // Send to Python API with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    let recognizeResponse;
+    try {
+      recognizeResponse = await fetch(`${normalizedUrl}/api/recognize/image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: base64Image,
+        }),
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw new Error(`Failed to connect to Python API at ${normalizedUrl}. Please ensure the server is running and accessible. Error: ${fetchError.message}`);
+    }
+    clearTimeout(timeoutId);
 
     if (!recognizeResponse.ok) {
       const errorText = await recognizeResponse.text();

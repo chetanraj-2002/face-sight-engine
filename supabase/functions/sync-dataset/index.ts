@@ -101,14 +101,25 @@ serve(async (req) => {
 
     console.log(`Prepared ${totalImagesSynced} images for sync`);
 
-    // Send to Python API
-    const syncResponse = await fetch(`${normalizedUrl}/api/dataset/sync`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ dataset }),
-    });
+    // Send to Python API with timeout and better error handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    let syncResponse;
+    try {
+      syncResponse = await fetch(`${normalizedUrl}/api/dataset/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dataset }),
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw new Error(`Failed to connect to Python API at ${normalizedUrl}. Please ensure the server is running and accessible. Error: ${fetchError.message}`);
+    }
+    clearTimeout(timeoutId);
 
     if (!syncResponse.ok) {
       const errorText = await syncResponse.text();
