@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import DatasetManagement from "./pages/DatasetManagement";
+import Training from "./pages/Training";
+import Recognition from "./pages/Recognition";
+import Attendance from "./pages/Attendance";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
 
@@ -22,8 +25,9 @@ const App = () => (
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dataset" element={<DatasetManagement />} />
-            <Route path="/training" element={<Dashboard />} />
-            <Route path="/recognition" element={<Dashboard />} />
+            <Route path="/training" element={<Training />} />
+            <Route path="/recognition" element={<Recognition />} />
+            <Route path="/attendance" element={<Attendance />} />
             <Route path="/users" element={<Dashboard />} />
             <Route path="/settings" element={<Dashboard />} />
           </Route>

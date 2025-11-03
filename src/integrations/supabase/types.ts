@@ -61,6 +61,48 @@ export type Database = {
           },
         ]
       }
+      attendance_sessions: {
+        Row: {
+          class_name: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          session_id: string
+          started_at: string
+          status: string
+          subject: string | null
+          total_marked: number
+          total_students: number
+          updated_at: string
+        }
+        Insert: {
+          class_name: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          session_id: string
+          started_at?: string
+          status?: string
+          subject?: string | null
+          total_marked?: number
+          total_students?: number
+          updated_at?: string
+        }
+        Update: {
+          class_name?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          session_id?: string
+          started_at?: string
+          status?: string
+          subject?: string | null
+          total_marked?: number
+          total_students?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       face_images: {
         Row: {
           id: string
