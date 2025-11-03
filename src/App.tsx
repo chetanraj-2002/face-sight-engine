@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
+import DatasetManagement from "./pages/DatasetManagement";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
 
@@ -20,7 +21,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dataset" element={<Dashboard />} />
+            <Route path="/dataset" element={<DatasetManagement />} />
             <Route path="/training" element={<Dashboard />} />
             <Route path="/recognition" element={<Dashboard />} />
             <Route path="/users" element={<Dashboard />} />
