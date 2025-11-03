@@ -22,7 +22,7 @@ export default function DatasetManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.usn || !formData.name) {
       toast.error("USN and Name are required");
       return;
@@ -36,12 +36,12 @@ export default function DatasetManagement() {
     try {
       // Add user to database
       const userId = await addUser(formData);
-      
+
       // Upload images
       await uploadImages(userId, formData.usn, selectedFiles);
-      
+
       toast.success(`Added ${formData.name} with ${selectedFiles.length} images`);
-      
+
       // Reset form
       setFormData({ usn: "", name: "", class: "" });
       setSelectedFiles([]);
@@ -60,12 +60,10 @@ export default function DatasetManagement() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-10">
       <div>
         <h1 className="text-3xl font-bold">Dataset Management</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage face images for training the recognition model
-        </p>
+        <p className="text-muted-foreground mt-2">Manage face images for training the recognition model</p>
       </div>
 
       {/* Statistics Cards */}
@@ -97,9 +95,7 @@ export default function DatasetManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.totalUsers > 0 
-                ? Math.round(stats.totalImages / stats.totalUsers) 
-                : 0}
+              {stats.totalUsers > 0 ? Math.round(stats.totalImages / stats.totalUsers) : 0}
             </div>
           </CardContent>
         </Card>
@@ -149,16 +145,9 @@ export default function DatasetManagement() {
               </div>
             </div>
 
-            <ImageUploader
-              selectedFiles={selectedFiles}
-              onFilesChange={setSelectedFiles}
-            />
+            <ImageUploader selectedFiles={selectedFiles} onFilesChange={setSelectedFiles} />
 
-            <Button 
-              type="submit" 
-              disabled={uploading || loading}
-              className="w-full"
-            >
+            <Button type="submit" disabled={uploading || loading} className="w-full">
               <Upload className="mr-2 h-4 w-4" />
               {uploading ? "Uploading..." : "Add User"}
             </Button>
@@ -172,11 +161,7 @@ export default function DatasetManagement() {
           <CardTitle>Enrolled Users</CardTitle>
         </CardHeader>
         <CardContent>
-          <UserList 
-            users={users} 
-            loading={loading}
-            onDelete={handleDelete}
-          />
+          <UserList users={users} loading={loading} onDelete={handleDelete} />
         </CardContent>
       </Card>
     </div>
