@@ -12,6 +12,9 @@ import DatasetManagement from "./pages/DatasetManagement";
 import Training from "./pages/Training";
 import Recognition from "./pages/Recognition";
 import Attendance from "./pages/Attendance";
+import InstitutionManagement from "./pages/InstitutionManagement";
+import DepartmentAdminManagement from "./pages/DepartmentAdminManagement";
+import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +49,9 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/institutions" element={<InstitutionManagement />} />
+              <Route path="/departments" element={<DepartmentAdminManagement />} />
+              <Route path="/users" element={<UserManagement />} />
               <Route path="/dataset" element={<DatasetManagement />} />
               <Route path="/training" element={<Training />} />
               <Route path="/recognition" element={<Recognition />} />

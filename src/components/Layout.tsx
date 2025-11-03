@@ -1,20 +1,47 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Database, GraduationCap, Brain, UserCheck, LayoutDashboard, LogOut } from 'lucide-react';
+import { Database, GraduationCap, Brain, UserCheck, LayoutDashboard, LogOut, Building2, Building, Users, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Dataset', href: '/dataset', icon: Database },
-  { name: 'Training', href: '/training', icon: Brain },
-  { name: 'Recognition', href: '/recognition', icon: GraduationCap },
-  { name: 'Attendance', href: '/attendance', icon: UserCheck },
-];
+const getNavigationForRole = (role: string | undefined) => {
+  const baseNav = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['super_admin', 'institute_admin', 'department_admin', 'faculty', 'student'] },
+  ];
+
+  const roleSpecificNav = {
+    super_admin: [
+      { name: 'Institutions', href: '/institutions', icon: Building2 },
+      { name: 'Model Health', href: '/training', icon: Activity },
+    ],
+    institute_admin: [
+      { name: 'Departments', href: '/departments', icon: Building },
+    ],
+    department_admin: [
+      { name: 'User Management', href: '/users', icon: Users },
+      { name: 'Dataset', href: '/dataset', icon: Database },
+      { name: 'Training', href: '/training', icon: Brain },
+      { name: 'Recognition', href: '/recognition', icon: GraduationCap },
+      { name: 'Attendance', href: '/attendance', icon: UserCheck },
+    ],
+    faculty: [
+      { name: 'Recognition', href: '/recognition', icon: GraduationCap },
+      { name: 'Attendance', href: '/attendance', icon: UserCheck },
+    ],
+    student: [
+      { name: 'Attendance', href: '/attendance', icon: UserCheck },
+    ],
+  };
+
+  const roleNav = roleSpecificNav[role as keyof typeof roleSpecificNav] || [];
+  return [...baseNav, ...roleNav];
+};
 
 export default function Layout() {
   const location = useLocation();
   const { signOut, profile } = useAuth();
+
+  const navigation = getNavigationForRole(profile?.role);
 
   return (
     <div className="min-h-screen bg-background">
@@ -24,7 +51,13 @@ export default function Layout() {
           <span className="text-xl font-bold">Face Recognition</span>
         </div>
         <div className="flex items-center gap-4">
-          {profile && <span className="text-sm text-muted-foreground">{profile.name}</span>}
+          {profile && (
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium">{profile.name}</span>
+              {' • '}
+              <span className="capitalize">{profile.role.replace('_', ' ')}</span>
+            </div>
+          )}
           <Button variant="ghost" size="sm" onClick={signOut}>
             <LogOut className="h-4 w-4 mr-2" />
             Sign Out
