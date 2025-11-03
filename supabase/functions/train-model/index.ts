@@ -57,6 +57,7 @@ serve(async (req) => {
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({}),
         signal: controller.signal,
       });
     } catch (fetchError) {
