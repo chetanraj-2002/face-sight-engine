@@ -12,10 +12,12 @@ const getNavigationForRole = (role: string | undefined) => {
   const roleSpecificNav = {
     super_admin: [
       { name: 'Institutions', href: '/institutions', icon: Building2 },
+      { name: 'Reports', href: '/attendance-reports', icon: Activity },
       { name: 'Model Health', href: '/training', icon: Activity },
     ],
     institute_admin: [
       { name: 'Departments', href: '/departments', icon: Building },
+      { name: 'Reports', href: '/attendance-reports', icon: Activity },
     ],
     department_admin: [
       { name: 'User Management', href: '/users', icon: Users },
@@ -23,13 +25,15 @@ const getNavigationForRole = (role: string | undefined) => {
       { name: 'Training', href: '/training', icon: Brain },
       { name: 'Recognition', href: '/recognition', icon: GraduationCap },
       { name: 'Attendance', href: '/attendance', icon: UserCheck },
+      { name: 'Reports', href: '/attendance-reports', icon: Activity },
     ],
     faculty: [
       { name: 'Recognition', href: '/recognition', icon: GraduationCap },
       { name: 'Attendance', href: '/attendance', icon: UserCheck },
+      { name: 'Reports', href: '/attendance-reports', icon: Activity },
     ],
     student: [
-      { name: 'Attendance', href: '/attendance', icon: UserCheck },
+      { name: 'My Attendance', href: '/my-attendance', icon: UserCheck },
     ],
   };
 
