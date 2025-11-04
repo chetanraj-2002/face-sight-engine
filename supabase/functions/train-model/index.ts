@@ -29,6 +29,38 @@ serve(async (req) => {
 
     console.log('Starting model training to:', normalizedUrl);
 
+    // Embeddings validation before training
+    console.log('Validating embeddings...');
+    try {
+      const embeddingsCheckResponse = await fetch(`${normalizedUrl}/api/train/status`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(15000), // 15 second timeout for embeddings check
+      });
+
+      if (!embeddingsCheckResponse.ok) {
+        throw new Error(`Failed to check embeddings status: ${embeddingsCheckResponse.status}`);
+      }
+
+      const embeddingsStatus = await embeddingsCheckResponse.json();
+
+      // Check if embeddings exist and are valid
+      if (!embeddingsStatus.embeddings_count || embeddingsStatus.embeddings_count === 0) {
+        throw new Error('No embeddings found. Please extract embeddings before training the model.');
+      }
+
+      if (embeddingsStatus.embeddings_count < 10) {
+        throw new Error(`Insufficient embeddings for training: only ${embeddingsStatus.embeddings_count} embeddings found. Minimum 10 embeddings required.`);
+      }
+
+      if (!embeddingsStatus.users_count || embeddingsStatus.users_count < 2) {
+        throw new Error(`Insufficient users for training: only ${embeddingsStatus.users_count} users found. Minimum 2 users required.`);
+      }
+
+      console.log(`Embeddings validation passed: ${embeddingsStatus.embeddings_count} embeddings from ${embeddingsStatus.users_count} users`);
+    } catch (validationError) {
+      throw new Error(`Embeddings validation failed: ${validationError.message}`);
+    }
+
     // Create training job record
     const { data: job, error: jobError } = await supabaseClient
       .from('training_jobs')
