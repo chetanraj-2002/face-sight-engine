@@ -138,6 +138,70 @@ serve(async (req) => {
       );
     }
 
+    // Batch processing for large datasets
+    const BATCH_SIZE = 1000;
+    let finalResult: any = { users_synced: 0, images_synced: 0 };
+    let batchesProcessed = 0;
+
+    if (totalImagesSynced > BATCH_SIZE) {
+      console.log(`Large dataset detected (${totalImagesSynced} images). Processing in batches of ${BATCH_SIZE}.`);
+
+      // Process dataset in batches
+      for (let i = 0; i < dataset.length; i += BATCH_SIZE) {
+        const batch = dataset.slice(i, i + BATCH_SIZE);
+        batchesProcessed++;
+        console.log(`Processing batch ${batchesProcessed} (${batch.length} images)...`);
+
+        // Enhanced timeout handling for batch processing
+        const batchTimeoutMs = 300000; // 5 minutes per batch
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), batchTimeoutMs);
+
+        let syncResponse;
+        try {
+          syncResponse = await fetch(`${normalizedUrl}/api/dataset/sync`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ dataset: batch }),
+            signal: controller.signal,
+          });
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          throw new Error(`Batch ${batchesProcessed} failed: ${fetchError.message}`);
+        }
+        clearTimeout(timeoutId);
+
+        if (!syncResponse.ok) {
+          const errorText = await syncResponse.text();
+          throw new Error(`Batch ${batchesProcessed} failed: Python API returned ${syncResponse.status}: ${errorText}`);
+        }
+
+        const batchResult = await syncResponse.json();
+        console.log(`Batch ${batchesProcessed} completed:`, batchResult);
+
+        // Aggregate results
+        finalResult.users_synced += batchResult.users_synced || 0;
+        finalResult.images_synced += batchResult.images_synced || 0;
+      }
+
+      console.log(`All ${batchesProcessed} batches completed. Final result:`, finalResult);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          users_synced: users?.length || 0,
+          images_synced: totalImagesSynced,
+          result: finalResult,
+          batches_processed: batchesProcessed,
+          batch_mode: true
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Enhanced timeout handling based on dataset size
     let timeoutMs = 300000; // Base 5 minutes
     if (totalImagesSynced > 1000) {
@@ -150,7 +214,7 @@ serve(async (req) => {
 
     console.log(`Using ${timeoutMs / 60000} minute timeout for sync operation`);
 
-    // Send to Python API with enhanced timeout and error handling
+    // Send to Python API with enhanced timeout and error handling (for non-batch mode)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
