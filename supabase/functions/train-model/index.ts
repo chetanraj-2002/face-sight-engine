@@ -78,9 +78,9 @@ serve(async (req) => {
 
     console.log('Created job:', job.id);
 
-    // Trigger training on Python API with timeout
+    // Trigger training on Python API with enhanced timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout for training start
     
     let trainResponse;
     try {
