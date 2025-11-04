@@ -118,10 +118,12 @@ serve(async (req) => {
       throw new Error(`Failed to start training: ${errorText}`);
     }
 
-    // Poll for status updates
+    // Enhanced status polling with training stage tracking
     let completed = false;
     let lastProgress = 0;
-    const maxAttempts = 60; // 10 minutes max
+    let lastStatus = '';
+    let startTime = Date.now();
+    const maxAttempts = 120; // 20 minutes max with 10s intervals
     let attempts = 0;
 
     while (!completed && attempts < maxAttempts) {
@@ -129,21 +131,33 @@ serve(async (req) => {
       attempts++;
 
       try {
-        const statusResponse = await fetch(`${normalizedUrl}/api/train/status`);
+        const statusResponse = await fetch(`${normalizedUrl}/api/train/status`, {
+          signal: AbortSignal.timeout(15000), // 15 second timeout for status checks
+        });
+
         if (statusResponse.ok) {
           const status = await statusResponse.json();
-          
-          if (status.progress !== lastProgress) {
+
+          // Enhanced progress tracking with specific training stages
+          if (status.progress !== lastProgress || status.message !== lastStatus) {
             lastProgress = status.progress;
+            lastStatus = status.message;
+
+            // Calculate estimated time remaining
+            const elapsedMs = Date.now() - startTime;
+            const estimatedTotalMs = elapsedMs / (status.progress / 100);
+            const estimatedRemainingMs = estimatedTotalMs - elapsedMs;
+            const estimatedRemainingMinutes = Math.round(estimatedRemainingMs / 60000);
+
             await supabaseClient
               .from('training_jobs')
               .update({
                 progress: status.progress,
-                logs: status.message || '',
+                logs: `${status.message}${status.progress > 0 && status.progress < 100 ? ` (Est. ${estimatedRemainingMinutes} min remaining)` : ''}`,
               })
               .eq('id', job.id);
-            
-            console.log(`Progress: ${status.progress}%`);
+
+            console.log(`Training Progress: ${status.progress}% - ${status.message}`);
           }
 
           if (status.status === 'completed') {
@@ -156,20 +170,32 @@ serve(async (req) => {
                 completed_at: new Date().toISOString(),
                 accuracy: status.accuracy,
                 model_version: status.model_version,
-                result_data: status.result || {},
+                result_data: {
+                  embeddings_count: status.embeddings_count,
+                  users_processed: status.users_processed,
+                  accuracy: status.accuracy,
+                  model_version: status.model_version,
+                  message: status.message
+                },
+                logs: `Training completed successfully. Model version: ${status.model_version}, Accuracy: ${status.accuracy}`,
               })
               .eq('id', job.id);
+
+            console.log(`Training completed successfully. Model version: ${status.model_version}, Accuracy: ${status.accuracy}`);
           } else if (status.status === 'failed') {
             await supabaseClient
               .from('training_jobs')
               .update({
                 status: 'failed',
                 error_message: status.message,
+                completed_at: new Date().toISOString(),
               })
               .eq('id', job.id);
-            
+
             throw new Error(`Training failed: ${status.message}`);
           }
+        } else {
+          console.warn(`Status check failed with status ${statusResponse.status}`);
         }
       } catch (pollError) {
         console.error('Error polling status:', pollError);
