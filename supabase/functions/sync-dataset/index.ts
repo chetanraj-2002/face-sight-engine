@@ -125,6 +125,12 @@ serve(async (req) => {
         JSON.stringify({
           success: false,
           error: 'No images to sync. Please add users and upload face images first.',
+          guidance: [
+            '1. Add users to the system',
+            '2. Upload face images for each user',
+            '3. Ensure images are stored in Supabase Storage',
+            '4. Try the sync operation again'
+          ],
           users_synced: 0,
           images_synced: 0,
         }),
@@ -132,9 +138,21 @@ serve(async (req) => {
       );
     }
 
-    // Send to Python API with timeout and better error handling
+    // Enhanced timeout handling based on dataset size
+    let timeoutMs = 300000; // Base 5 minutes
+    if (totalImagesSynced > 1000) {
+      timeoutMs = 600000; // 10 minutes for very large datasets
+      console.log(`Large dataset detected (${totalImagesSynced} images). Extended timeout to ${timeoutMs / 60000} minutes.`);
+    } else if (totalImagesSynced > 500) {
+      timeoutMs = 450000; // 7.5 minutes for medium datasets
+      console.log(`Medium dataset detected (${totalImagesSynced} images). Extended timeout to ${timeoutMs / 60000} minutes.`);
+    }
+
+    console.log(`Using ${timeoutMs / 60000} minute timeout for sync operation`);
+
+    // Send to Python API with enhanced timeout and error handling
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout for large datasets
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
     let syncResponse;
     try {
