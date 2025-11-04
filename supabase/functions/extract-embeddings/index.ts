@@ -29,6 +29,45 @@ serve(async (req) => {
 
     console.log('Starting embedding extraction to:', normalizedUrl);
 
+    // Pre-flight health check
+    console.log('Performing health check on Python API...');
+    try {
+      const healthResponse = await fetch(`${normalizedUrl}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(10000), // 10 second timeout for health check
+      });
+
+      if (!healthResponse.ok) {
+        throw new Error(`Python API health check failed with status ${healthResponse.status}`);
+      }
+
+      const healthData = await healthResponse.json();
+      console.log('Python API health check passed:', healthData);
+    } catch (healthError) {
+      throw new Error(`Python API health check failed. Please ensure the server is running and accessible at ${normalizedUrl}. Error: ${healthError.message}`);
+    }
+
+    // Verify required models exist
+    console.log('Checking for required model files...');
+    try {
+      const modelCheckResponse = await fetch(`${normalizedUrl}/api/dataset/stats`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(15000), // 15 second timeout for model check
+      });
+
+      if (!modelCheckResponse.ok) {
+        throw new Error(`Model availability check failed with status ${modelCheckResponse.status}`);
+      }
+
+      const statsData = await modelCheckResponse.json();
+      if (!statsData.total_users || statsData.total_users === 0) {
+        throw new Error('No dataset found. Please sync dataset before extracting embeddings.');
+      }
+      console.log(`Dataset check passed: ${statsData.total_users} users, ${statsData.total_images} images found.`);
+    } catch (modelError) {
+      throw new Error(`Model/dataset check failed: ${modelError.message}`);
+    }
+
     // Create training job record
     const { data: job, error: jobError } = await supabaseClient
       .from('training_jobs')
