@@ -212,15 +212,17 @@ serve(async (req) => {
     }
 
     if (!completed) {
+      const elapsedMinutes = Math.round((Date.now() - startTime) / 60000);
       await supabaseClient
         .from('training_jobs')
         .update({
           status: 'failed',
-          error_message: 'Extraction timed out',
+          error_message: `Extraction timed out after ${elapsedMinutes} minutes and ${attempts} attempts`,
+          completed_at: new Date().toISOString(),
         })
         .eq('id', job.id);
-      
-      throw new Error('Extraction timed out');
+
+      throw new Error(`Extraction timed out after ${elapsedMinutes} minutes. This may indicate a large dataset or performance issues with the Python API.`);
     }
 
     return new Response(
