@@ -166,13 +166,70 @@ serve(async (req) => {
       });
     } catch (fetchError) {
       clearTimeout(timeoutId);
-      throw new Error(`Failed to connect to Python API at ${normalizedUrl}. Please ensure the server is running and accessible. Error: ${fetchError.message}`);
+
+      // Provide specific error guidance based on error type
+      let errorMessage = `Failed to connect to Python API at ${normalizedUrl}.`;
+      let guidance = [
+        '1. Ensure the Python API server is running',
+        '2. Check that the PYTHON_API_URL environment variable is correct',
+        '3. Verify network connectivity between Supabase and Python API',
+        '4. Check firewall rules and port accessibility'
+      ];
+
+      if (fetchError.name === 'AbortError') {
+        errorMessage = `Sync operation timed out after ${timeoutMs / 60000} minutes.`;
+        guidance = [
+          '1. Dataset may be too large - consider processing in smaller batches',
+          '2. Check Python API server performance and resources',
+          '3. Verify network stability',
+          '4. Try the operation again'
+        ];
+      } else if (fetchError.code === 'ECONNREFUSED') {
+        errorMessage = `Connection refused by Python API at ${normalizedUrl}.`;
+        guidance = [
+          '1. Ensure Python API server is running on the correct port',
+          '2. Check that the server is not blocked by firewall',
+          '3. Verify the URL is correct and accessible',
+          '4. Restart the Python API server if needed'
+        ];
+      }
+
+      throw new Error(errorMessage + '\n\nTroubleshooting steps:\n' + guidance.join('\n'));
     }
     clearTimeout(timeoutId);
 
     if (!syncResponse.ok) {
       const errorText = await syncResponse.text();
-      throw new Error(`Python API sync failed: ${errorText}`);
+
+      // Provide specific error messages based on status code
+      let errorMessage = `Python API sync failed`;
+      let guidance = [];
+
+      if (syncResponse.status === 400) {
+        errorMessage = `Python API reported bad request`;
+        guidance = [
+          '1. Check if dataset format is correct',
+          '2. Verify image data is valid base64',
+          '3. Check for missing required fields in dataset'
+        ];
+      } else if (syncResponse.status === 500) {
+        errorMessage = `Python API internal server error`;
+        guidance = [
+          '1. Check Python API server logs for details',
+          '2. Verify server has sufficient disk space',
+          '3. Check for memory issues on Python API server',
+          '4. Restart the Python API server'
+        ];
+      } else if (syncResponse.status === 503) {
+        errorMessage = `Python API service unavailable`;
+        guidance = [
+          '1. Python API server may be overloaded',
+          '2. Wait and try again later',
+          '3. Check server resources and restart if needed'
+        ];
+      }
+
+      throw new Error(`${errorMessage}: ${errorText}\n\nTroubleshooting steps:\n${guidance.join('\n')}`);
     }
 
     const result = await syncResponse.json();
