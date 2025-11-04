@@ -125,32 +125,47 @@ serve(async (req) => {
       throw new Error(`Failed to start extraction: ${errorText}`);
     }
 
-    // Poll for status updates
+    // Enhanced status polling with exponential backoff
     let completed = false;
     let lastProgress = 0;
-    const maxAttempts = 60; // 10 minutes max (10s intervals)
+    let lastStatus = '';
+    let startTime = Date.now();
+    const maxAttempts = 180; // 30 minutes max with variable intervals
     let attempts = 0;
+    let pollInterval = 5000; // Start with 5 second intervals
 
     while (!completed && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
       attempts++;
 
       try {
-        const statusResponse = await fetch(`${normalizedUrl}/api/train/status`);
+        const statusResponse = await fetch(`${normalizedUrl}/api/train/status`, {
+          signal: AbortSignal.timeout(15000), // 15 second timeout for status checks
+        });
+
         if (statusResponse.ok) {
           const status = await statusResponse.json();
-          
-          if (status.progress !== lastProgress) {
+
+          // Enhanced progress tracking with stage information
+          if (status.progress !== lastProgress || status.message !== lastStatus) {
             lastProgress = status.progress;
+            lastStatus = status.message;
+
+            // Calculate estimated time remaining
+            const elapsedMs = Date.now() - startTime;
+            const estimatedTotalMs = elapsedMs / (status.progress / 100);
+            const estimatedRemainingMs = estimatedTotalMs - elapsedMs;
+            const estimatedRemainingMinutes = Math.round(estimatedRemainingMs / 60000);
+
             await supabaseClient
               .from('training_jobs')
               .update({
                 progress: status.progress,
-                logs: status.message || '',
+                logs: `${status.message}${status.progress > 0 && status.progress < 100 ? ` (Est. ${estimatedRemainingMinutes} min remaining)` : ''}`,
               })
               .eq('id', job.id);
-            
-            console.log(`Progress: ${status.progress}%`);
+
+            console.log(`Progress: ${status.progress}% - ${status.message}`);
           }
 
           if (status.status === 'completed') {
@@ -163,22 +178,36 @@ serve(async (req) => {
                 completed_at: new Date().toISOString(),
                 embeddings_count: status.embeddings_count,
                 users_processed: status.users_processed,
+                logs: `Completed: ${status.message}`,
               })
               .eq('id', job.id);
+
+            console.log(`Extraction completed successfully: ${status.embeddings_count} embeddings from ${status.users_processed} users`);
           } else if (status.status === 'failed') {
             await supabaseClient
               .from('training_jobs')
               .update({
                 status: 'failed',
                 error_message: status.message,
+                completed_at: new Date().toISOString(),
               })
               .eq('id', job.id);
-            
+
             throw new Error(`Extraction failed: ${status.message}`);
           }
+        } else {
+          console.warn(`Status check failed with status ${statusResponse.status}`);
         }
       } catch (pollError) {
         console.error('Error polling status:', pollError);
+
+        // Implement exponential backoff for failed polls
+        if (pollError.name === 'AbortError') {
+          console.log('Status check timed out, increasing poll interval');
+          pollInterval = Math.min(pollInterval * 1.5, 30000); // Max 30 seconds
+        } else {
+          pollInterval = Math.min(pollInterval * 1.2, 20000); // Max 20 seconds for other errors
+        }
       }
     }
 
