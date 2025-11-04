@@ -441,10 +441,15 @@ def train_model():
             'model_version': None
         }
         
-        # Start background thread
-        thread = threading.Thread(target=_train_model_worker)
-        thread.daemon = True
-        thread.start()
+        # Start background thread with enhanced error handling
+        try:
+            thread = threading.Thread(target=_train_model_worker)
+            thread.daemon = True
+            thread.start()
+        except Exception as thread_error:
+            training_state['status'] = 'failed'
+            training_state['message'] = f'Failed to start training thread: {str(thread_error)}'
+            return jsonify({'success': False, 'error': f'Failed to start training: {str(thread_error)}'}), 500
         
         return jsonify({
             'success': True,
