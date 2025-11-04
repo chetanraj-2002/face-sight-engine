@@ -23,11 +23,29 @@ serve(async (req) => {
     }
 
     // Normalize URL - add http:// if no protocol specified
-    const normalizedUrl = pythonApiUrl.startsWith('http://') || pythonApiUrl.startsWith('https://') 
-      ? pythonApiUrl 
+    const normalizedUrl = pythonApiUrl.startsWith('http://') || pythonApiUrl.startsWith('https://')
+      ? pythonApiUrl
       : `http://${pythonApiUrl}`;
 
     console.log('Starting dataset sync to:', normalizedUrl);
+
+    // Pre-flight health check
+    console.log('Performing health check on Python API...');
+    try {
+      const healthResponse = await fetch(`${normalizedUrl}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(10000), // 10 second timeout for health check
+      });
+
+      if (!healthResponse.ok) {
+        throw new Error(`Python API health check failed with status ${healthResponse.status}`);
+      }
+
+      const healthData = await healthResponse.json();
+      console.log('Python API health check passed:', healthData);
+    } catch (healthError) {
+      throw new Error(`Python API health check failed. Please ensure the server is running and accessible at ${normalizedUrl}. Error: ${healthError.message}`);
+    }
 
     // Fetch all users from Supabase
     const { data: users, error: usersError } = await supabaseClient
