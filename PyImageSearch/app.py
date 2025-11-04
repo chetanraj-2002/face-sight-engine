@@ -14,6 +14,17 @@ import threading
 app = Flask(__name__)
 CORS(app)
 
+# Global training state
+training_state = {
+    'status': 'idle',
+    'progress': 0,
+    'message': 'Ready',
+    'embeddings_count': 0,
+    'users_processed': 0,
+    'accuracy': None,
+    'model_version': None
+}
+
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASET_DIR = os.path.join(BASE_DIR, 'dataset')
