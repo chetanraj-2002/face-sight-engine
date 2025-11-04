@@ -174,8 +174,9 @@ def backup_dataset():
 def _extract_embeddings_worker(confidence_threshold):
     """Background worker for embedding extraction"""
     global training_state
-    
+
     try:
+        # Thread-safe state update
         training_state['status'] = 'extracting'
         training_state['progress'] = 0
         training_state['message'] = 'Loading models...'
