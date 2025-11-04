@@ -465,13 +465,13 @@ def train_model():
 @app.route('/api/train/status', methods=['GET'])
 def get_training_status():
     global training_state
-    
+
     try:
-        # Return current training state
+        # Return current training state with safe access
         response = {
-            'status': training_state['status'],
-            'progress': training_state['progress'],
-            'message': training_state['message']
+            'status': training_state.get('status', 'unknown'),
+            'progress': training_state.get('progress', 0),
+            'message': training_state.get('message', 'Status unknown')
         }
         
         # Add additional info if available
