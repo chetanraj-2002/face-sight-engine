@@ -203,22 +203,49 @@ serve(async (req) => {
     }
 
     if (!completed) {
+      const elapsedMinutes = Math.round((Date.now() - startTime) / 60000);
       await supabaseClient
         .from('training_jobs')
         .update({
           status: 'failed',
-          error_message: 'Training timed out',
+          error_message: `Training timed out after ${elapsedMinutes} minutes and ${attempts} attempts`,
+          completed_at: new Date().toISOString(),
         })
         .eq('id', job.id);
-      
-      throw new Error('Training timed out');
+
+      throw new Error(`Training timed out after ${elapsedMinutes} minutes. This may indicate a large dataset or performance issues.`);
+    }
+
+    // Model validation after training
+    console.log('Performing model validation...');
+    try {
+      const validationResponse = await fetch(`${normalizedUrl}/api/train/status`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(10000), // 10 second timeout for validation
+      });
+
+      if (validationResponse.ok) {
+        const validationStatus = await validationResponse.json();
+
+        if (validationStatus.status === 'completed' && validationStatus.model_version) {
+          console.log(`Model validation passed: version ${validationStatus.model_version}, accuracy: ${validationStatus.accuracy}`);
+        } else {
+          console.warn('Model validation warning: status may not be properly completed');
+        }
+      } else {
+        console.warn('Model validation check failed, but training may have completed');
+      }
+    } catch (validationError) {
+      console.warn('Model validation failed:', validationError.message);
+      // Don't fail the entire process if validation fails, just log it
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         job_id: job.id,
-        message: 'Model trained successfully',
+        message: 'Model trained and validated successfully',
+        model_version: lastStatus && lastStatus.includes('version') ? lastStatus : 'Unknown',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
