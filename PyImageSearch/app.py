@@ -332,10 +332,15 @@ def extract_embeddings():
             'model_version': None
         }
         
-        # Start background thread
-        thread = threading.Thread(target=_extract_embeddings_worker, args=(confidence_threshold,))
-        thread.daemon = True
-        thread.start()
+        # Start background thread with enhanced error handling
+        try:
+            thread = threading.Thread(target=_extract_embeddings_worker, args=(confidence_threshold,))
+            thread.daemon = True
+            thread.start()
+        except Exception as thread_error:
+            training_state['status'] = 'failed'
+            training_state['message'] = f'Failed to start extraction thread: {str(thread_error)}'
+            return jsonify({'success': False, 'error': f'Failed to start extraction: {str(thread_error)}'}), 500
         
         return jsonify({
             'success': True,
