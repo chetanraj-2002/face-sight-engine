@@ -85,9 +85,9 @@ serve(async (req) => {
 
     console.log('Created job:', job.id);
 
-    // Trigger embedding extraction on Python API with timeout
+    // Trigger embedding extraction on Python API with enhanced timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for initial connection
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout for initial connection
     
     let extractResponse;
     try {
