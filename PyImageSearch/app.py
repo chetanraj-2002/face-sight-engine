@@ -11,7 +11,7 @@ from werkzeug.utils import secure_filename
 import imutils
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["*"], supports_credentials=True)
 
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
