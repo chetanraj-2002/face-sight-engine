@@ -16,7 +16,7 @@ export const API_CONFIG = {
   // API endpoints matching the Flask backend
   ENDPOINTS: {
     // Dataset & Training
-    SYNC_DATASET: "/api/sync/dataset",
+    SYNC_DATASET: "/api/dataset/sync",
     EXTRACT_EMBEDDINGS: "/api/train/embeddings",
     TRAIN_MODEL: "/api/train/model",
     TRAINING_STATUS: "/api/train/status",
