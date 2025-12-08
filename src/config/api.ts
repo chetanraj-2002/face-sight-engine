@@ -11,7 +11,7 @@ export const API_CONFIG = {
   // Example: 'https://abc123.ngrok-free.app' or 'http://localhost:5000' for local
   LOCAL_API_URL:
     import.meta.env.VITE_PYTHON_API_URL ||
-    " https://palanquiningly-asparaginous-dia.ngrok-free.dev -> http://localhost:5000",
+    "https://palanquiningly-asparaginous-dia.ngrok-free.dev",
 
   // API endpoints matching the Flask backend
   ENDPOINTS: {
