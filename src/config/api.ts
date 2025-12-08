@@ -3,11 +3,13 @@
 // In production: React calls Edge Functions which proxy to Python API
 
 export const API_CONFIG = {
-  // Automatically use direct API in development mode
-  USE_DIRECT_API: import.meta.env.DEV,
+  // Set to true to use direct API calls (bypassing edge functions)
+  // Enable this when using ngrok or local development
+  USE_DIRECT_API: true,
   
-  // Local Python API URL - change this if your Flask runs on a different port
-  LOCAL_API_URL: 'http://localhost:5000',
+  // Python API URL - Set your ngrok URL here when testing from cloud preview
+  // Example: 'https://abc123.ngrok-free.app' or 'http://localhost:5000' for local
+  LOCAL_API_URL: import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:5000',
   
   // API endpoints matching the Flask backend
   ENDPOINTS: {
