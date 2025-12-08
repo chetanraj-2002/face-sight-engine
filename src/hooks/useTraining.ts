@@ -2,6 +2,16 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { API_CONFIG, isDirectApiMode } from '@/config/api';
+import { apiClient } from '@/lib/apiClient';
+
+interface TrainingResponse {
+  status?: string;
+  message?: string;
+  users_synced?: number;
+  images_synced?: number;
+  job_id?: string;
+}
 
 export const useTraining = () => {
   const { toast } = useToast();
@@ -28,14 +38,24 @@ export const useTraining = () => {
   // Sync dataset mutation
   const syncDataset = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('sync-dataset');
-      if (error) throw error;
-      return data;
+      if (isDirectApiMode()) {
+        // Direct API call to Python backend
+        console.log('[Training] Using direct API for sync-dataset');
+        const response = await apiClient.post<TrainingResponse>(
+          API_CONFIG.ENDPOINTS.SYNC_DATASET
+        );
+        return response.data;
+      } else {
+        // Production: use edge function
+        const { data, error } = await supabase.functions.invoke('sync-dataset');
+        if (error) throw error;
+        return data;
+      }
     },
     onSuccess: (data) => {
       toast({
         title: 'Dataset Synced',
-        description: `Synced ${data.users_synced} users with ${data.images_synced} images`,
+        description: `Synced ${data?.users_synced || 0} users with ${data?.images_synced || 0} images`,
       });
       queryClient.invalidateQueries({ queryKey: ['training-jobs'] });
     },
@@ -51,9 +71,19 @@ export const useTraining = () => {
   // Extract embeddings mutation
   const extractEmbeddings = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('extract-embeddings');
-      if (error) throw error;
-      return data;
+      if (isDirectApiMode()) {
+        // Direct API call to Python backend
+        console.log('[Training] Using direct API for extract-embeddings');
+        const response = await apiClient.post<TrainingResponse>(
+          API_CONFIG.ENDPOINTS.EXTRACT_EMBEDDINGS
+        );
+        return response.data;
+      } else {
+        // Production: use edge function
+        const { data, error } = await supabase.functions.invoke('extract-embeddings');
+        if (error) throw error;
+        return data;
+      }
     },
     onSuccess: () => {
       toast({
@@ -74,9 +104,19 @@ export const useTraining = () => {
   // Train model mutation
   const trainModel = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('train-model');
-      if (error) throw error;
-      return data;
+      if (isDirectApiMode()) {
+        // Direct API call to Python backend
+        console.log('[Training] Using direct API for train-model');
+        const response = await apiClient.post<TrainingResponse>(
+          API_CONFIG.ENDPOINTS.TRAIN_MODEL
+        );
+        return response.data;
+      } else {
+        // Production: use edge function
+        const { data, error } = await supabase.functions.invoke('train-model');
+        if (error) throw error;
+        return data;
+      }
     },
     onSuccess: () => {
       toast({
