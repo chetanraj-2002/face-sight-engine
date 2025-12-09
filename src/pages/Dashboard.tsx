@@ -1,9 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Image, Brain, UserCheck, Building, GraduationCap } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Users, Image, Brain, UserCheck, Building, GraduationCap, RefreshCw } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
   const { profile } = useAuth();
@@ -15,14 +16,9 @@ export default function Dashboard() {
     totalInstitutes: 0,
     totalDepartments: 0,
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (profile) {
-      fetchStats();
-    }
-  }, [profile]);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const yesterday = new Date();
@@ -39,8 +35,7 @@ export default function Dashboard() {
       usersQuery = usersQuery.eq('class', profile.class);
       attendanceQuery = attendanceQuery.eq('class', profile.class);
     } else if (profile?.role === 'department_admin' && profile?.department) {
-      usersQuery = usersQuery.eq('class', profile.department);
-      attendanceQuery = attendanceQuery.eq('class', profile.department);
+      // For department_admin, don't filter by class - show all users they have access to
     }
 
     // Execute queries
@@ -71,8 +66,41 @@ export default function Dashboard() {
       totalInstitutes,
       totalDepartments,
     });
-  };
+  }, [profile]);
 
+  useEffect(() => {
+    if (profile) {
+      fetchStats();
+    }
+  }, [profile, fetchStats]);
+
+  // Real-time subscription for live updates
+  useEffect(() => {
+    const channels = [
+      supabase
+        .channel('users-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => fetchStats())
+        .subscribe(),
+      supabase
+        .channel('face-images-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'face_images' }, () => fetchStats())
+        .subscribe(),
+      supabase
+        .channel('attendance-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_logs' }, () => fetchStats())
+        .subscribe(),
+    ];
+
+    return () => {
+      channels.forEach(channel => supabase.removeChannel(channel));
+    };
+  }, [fetchStats]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchStats();
+    setIsRefreshing(false);
+  };
   const getRoleDisplay = () => {
     if (!profile?.role) return 'User';
     return profile.role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
@@ -85,9 +113,15 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">Overview of your face recognition system</p>
         </div>
-        <Badge variant="secondary" className="text-sm">
-          {getRoleDisplay()}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
+            <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Badge variant="secondary" className="text-sm">
+            {getRoleDisplay()}
+          </Badge>
+        </div>
       </div>
 
       {profile && (

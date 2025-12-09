@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 
 interface CameraCaptureProps {
   onCapture: (file: File) => void;
@@ -17,6 +18,7 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+  const { playSound } = useNotificationSound();
 
   const stopCamera = useCallback(() => {
     if (countdownRef.current) {
@@ -49,6 +51,7 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
               type: 'image/jpeg',
             });
             stopCamera();
+            playSound('success'); // Play success sound after capture
             onCapture(file);
             toast({
               title: 'Photo Captured',
@@ -92,6 +95,8 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
               setTimeout(() => captureAndSubmit(), 100);
               return null;
             }
+            // Play beep on each countdown second
+            playSound('capture');
             return prev - 1;
           });
         }, 1000);
