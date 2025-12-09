@@ -57,9 +57,10 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
       },
       body: JSON.stringify({
-        image: base64Image,
+        image_data: base64Image,
         session_id: sessionId,
       }),
     });
