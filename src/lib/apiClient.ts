@@ -76,9 +76,10 @@ class ApiClient {
       if (body instanceof FormData) {
         requestBody = body;
         // Don't set Content-Type for FormData - browser will set it with boundary
-      } else if (body) {
+      } else {
+        // Always set Content-Type for JSON requests (even empty body)
         headers['Content-Type'] = 'application/json';
-        requestBody = JSON.stringify(body);
+        requestBody = JSON.stringify(body || {});
       }
 
       const response = await fetch(url, {
