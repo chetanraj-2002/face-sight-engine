@@ -4,6 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Camera, Square, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 
 interface LiveCameraCaptureProps {
   userId: string;
@@ -18,10 +19,12 @@ export default function LiveCameraCapture({ userId, usn, onComplete }: LiveCamer
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const { playSound } = useNotificationSound();
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSoundRef = useRef<number>(0);
 
   const IMAGES_PER_USER = 100;
   const CAPTURE_RATE_MS = 500; // 2 images per second
@@ -90,6 +93,7 @@ export default function LiveCameraCapture({ userId, usn, onComplete }: LiveCamer
         }
         setIsCapturing(false);
         setCapturedImages(images);
+        playSound('complete'); // Play completion sound
         uploadImages(images);
         return;
       }
@@ -99,6 +103,11 @@ export default function LiveCameraCapture({ userId, usn, onComplete }: LiveCamer
         images.push(imageData);
         count++;
         setCaptureCount(count);
+        
+        // Play beep every 10 images
+        if (count % 10 === 0) {
+          playSound('capture');
+        }
       }
     }, CAPTURE_RATE_MS);
   };
@@ -135,11 +144,13 @@ export default function LiveCameraCapture({ userId, usn, onComplete }: LiveCamer
       setUploadProgress(100);
       
       if (data?.batchComplete) {
+        playSound('success');
         toast.success(data.message, {
           description: 'Training pipeline started automatically!',
           duration: 5000,
         });
       } else {
+        playSound('success');
         toast.success(data?.message || `Uploaded ${images.length} images successfully!`);
       }
 
@@ -148,6 +159,7 @@ export default function LiveCameraCapture({ userId, usn, onComplete }: LiveCamer
       
     } catch (error: any) {
       console.error('Upload error:', error);
+      playSound('error');
       toast.error(`Upload failed: ${error.message}`);
     } finally {
       setIsUploading(false);
