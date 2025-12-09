@@ -51,6 +51,7 @@ class ApiClient {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
         },
       });
       return this.handleResponse<T>(response);
@@ -67,6 +68,7 @@ class ApiClient {
     try {
       const headers: Record<string, string> = {
         'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
       };
 
       let requestBody: FormData | string | undefined;
