@@ -17,7 +17,7 @@ export const API_CONFIG = {
   ENDPOINTS: {
     // Dataset & Training
     SYNC_DATASET: "/api/dataset/sync",
-    EXTRACT_EMBEDDINGS: "/api/train/embeddings",
+    EXTRACT_EMBEDDINGS: "/api/train/extract-embeddings",
     TRAIN_MODEL: "/api/train/model",
     TRAINING_STATUS: "/api/train/status",
 
