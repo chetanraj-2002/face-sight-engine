@@ -17,9 +17,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const pythonApiUrl = Deno.env.get('PYTHON_API_URL');
+    let pythonApiUrl = Deno.env.get('PYTHON_API_URL');
     if (!pythonApiUrl) {
       throw new Error('PYTHON_API_URL not configured');
+    }
+    
+    // Ensure URL has protocol
+    if (!pythonApiUrl.startsWith('http://') && !pythonApiUrl.startsWith('https://')) {
+      pythonApiUrl = `http://${pythonApiUrl}`;
     }
 
     const formData = await req.formData();
