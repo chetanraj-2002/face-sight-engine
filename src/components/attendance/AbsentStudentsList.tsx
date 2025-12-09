@@ -39,18 +39,18 @@ export function AbsentStudentsList({ sessionId, className }: AbsentStudentsListP
 
       if (studentsError) throw studentsError;
 
-      // Fetch students who attended this session
+      // Fetch students who attended this session - use USN since user_id may be null
       const { data: attendedStudents, error: attendanceError } = await supabase
         .from('attendance_logs')
-        .select('user_id')
+        .select('usn')
         .eq('session_id', sessionId);
 
       if (attendanceError) throw attendanceError;
 
-      const attendedIds = new Set(attendedStudents?.map(a => a.user_id) || []);
+      const attendedUSNs = new Set(attendedStudents?.map(a => a.usn) || []);
 
-      // Filter to get absent students
-      const absent = allStudents?.filter(student => !attendedIds.has(student.id)) || [];
+      // Filter to get absent students by comparing USN
+      const absent = allStudents?.filter(student => !attendedUSNs.has(student.usn)) || [];
       setAbsentStudents(absent);
     } catch (error) {
       console.error('Error fetching absent students:', error);
