@@ -56,16 +56,17 @@ export const useTraining = () => {
         if (imagesError) throw imagesError;
         
         // Download images and convert to base64
+        // Flask expects flat array: [{usn, name, class, image, filename}, ...]
         const dataset: Array<{
           usn: string;
           name: string;
           class: string | null;
-          images: Array<{ filename: string; data: string }>;
+          image: string;
+          filename: string;
         }> = [];
         
         for (const user of users || []) {
           const userImages = (faceImages || []).filter(img => img.usn === user.usn);
-          const imageDataArray: Array<{ filename: string; data: string }> = [];
           
           for (const img of userImages) {
             try {
@@ -85,26 +86,21 @@ export const useTraining = () => {
                 new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
               );
               
-              imageDataArray.push({
+              dataset.push({
+                usn: user.usn,
+                name: user.name,
+                class: user.class,
+                image: base64,
                 filename: img.storage_path.split('/').pop() || 'image.jpg',
-                data: base64,
               });
             } catch (err) {
               console.warn(`Error processing image: ${img.storage_path}`, err);
             }
           }
-          
-          if (imageDataArray.length > 0) {
-            dataset.push({
-              usn: user.usn,
-              name: user.name,
-              class: user.class,
-              images: imageDataArray,
-            });
-          }
         }
         
-        console.log(`[Training] Prepared dataset with ${dataset.length} users`);
+        const uniqueUsers = new Set(dataset.map(d => d.usn)).size;
+        console.log(`[Training] Prepared dataset with ${uniqueUsers} users, ${dataset.length} images`);
         
         const response = await apiClient.post<TrainingResponse>(
           API_CONFIG.ENDPOINTS.SYNC_DATASET,
