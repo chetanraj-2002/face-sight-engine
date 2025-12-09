@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -48,21 +47,19 @@ serve(async (req) => {
       throw new Error('Invalid session ID');
     }
 
-    // Convert image to base64 safely (avoid stack overflow with large images)
-    const arrayBuffer = await imageFile.arrayBuffer();
-    const base64Image = base64Encode(new Uint8Array(arrayBuffer));
+    // Create FormData to send to Python API (it expects multipart/form-data)
+    const pythonFormData = new FormData();
+    pythonFormData.append('image', imageFile, imageFile.name || 'capture.jpg');
+    pythonFormData.append('session_id', sessionId);
+    pythonFormData.append('confidence_threshold', '0.6');
 
     // Send to Python API
     const attendanceResponse = await fetch(`${pythonApiUrl}/api/recognize/mark-attendance`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         'ngrok-skip-browser-warning': 'true',
       },
-      body: JSON.stringify({
-        image_data: base64Image,
-        session_id: sessionId,
-      }),
+      body: pythonFormData,
     });
 
     if (!attendanceResponse.ok) {
