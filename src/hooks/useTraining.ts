@@ -39,10 +39,76 @@ export const useTraining = () => {
   const syncDataset = useMutation({
     mutationFn: async () => {
       if (isDirectApiMode()) {
-        // Direct API call to Python backend
+        // Direct API call to Python backend - need to fetch and send dataset
         console.log('[Training] Using direct API for sync-dataset');
+        
+        // Fetch users and their face images from Supabase
+        const { data: users, error: usersError } = await supabase
+          .from('users')
+          .select('id, usn, name, class');
+        
+        if (usersError) throw usersError;
+        
+        const { data: faceImages, error: imagesError } = await supabase
+          .from('face_images')
+          .select('id, usn, user_id, image_url, storage_path');
+        
+        if (imagesError) throw imagesError;
+        
+        // Download images and convert to base64
+        const dataset: Array<{
+          usn: string;
+          name: string;
+          class: string | null;
+          images: Array<{ filename: string; data: string }>;
+        }> = [];
+        
+        for (const user of users || []) {
+          const userImages = (faceImages || []).filter(img => img.usn === user.usn);
+          const imageDataArray: Array<{ filename: string; data: string }> = [];
+          
+          for (const img of userImages) {
+            try {
+              // Download image from Supabase storage
+              const { data: imageData, error: downloadError } = await supabase.storage
+                .from('face-images')
+                .download(img.storage_path);
+              
+              if (downloadError || !imageData) {
+                console.warn(`Failed to download image: ${img.storage_path}`);
+                continue;
+              }
+              
+              // Convert to base64
+              const buffer = await imageData.arrayBuffer();
+              const base64 = btoa(
+                new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+              );
+              
+              imageDataArray.push({
+                filename: img.storage_path.split('/').pop() || 'image.jpg',
+                data: base64,
+              });
+            } catch (err) {
+              console.warn(`Error processing image: ${img.storage_path}`, err);
+            }
+          }
+          
+          if (imageDataArray.length > 0) {
+            dataset.push({
+              usn: user.usn,
+              name: user.name,
+              class: user.class,
+              images: imageDataArray,
+            });
+          }
+        }
+        
+        console.log(`[Training] Prepared dataset with ${dataset.length} users`);
+        
         const response = await apiClient.post<TrainingResponse>(
-          API_CONFIG.ENDPOINTS.SYNC_DATASET
+          API_CONFIG.ENDPOINTS.SYNC_DATASET,
+          { dataset }
         );
         return response.data;
       } else {
