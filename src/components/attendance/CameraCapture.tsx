@@ -30,9 +30,13 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
       setStream(mediaStream);
       setIsCameraActive(true);
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
+      // Use setTimeout to ensure video element is rendered before setting srcObject
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          videoRef.current.play().catch(console.error);
+        }
+      }, 100);
     } catch (error) {
       console.error('Error accessing camera:', error);
       toast({
