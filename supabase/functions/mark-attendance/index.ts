@@ -74,8 +74,8 @@ serve(async (req) => {
     const result = await attendanceResponse.json();
     console.log('Attendance marked:', result);
 
-    // Insert attendance logs
-    const attendanceLogs = (result.recognized || []).map((person: any) => ({
+    // Insert attendance logs - Python API returns 'attendees' not 'recognized'
+    const attendanceLogs = (result.attendees || result.recognized || []).map((person: any) => ({
       session_id: sessionId,
       usn: person.usn,
       name: person.name,
