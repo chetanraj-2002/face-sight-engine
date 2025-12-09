@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -43,9 +43,9 @@ serve(async (req) => {
       throw new Error('Invalid session ID');
     }
 
-    // Convert image to base64
+    // Convert image to base64 safely (avoid stack overflow with large images)
     const arrayBuffer = await imageFile.arrayBuffer();
-    const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const base64Image = base64Encode(new Uint8Array(arrayBuffer));
 
     // Send to Python API
     const attendanceResponse = await fetch(`${pythonApiUrl}/api/recognize/mark-attendance`, {
