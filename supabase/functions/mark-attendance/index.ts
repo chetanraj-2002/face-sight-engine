@@ -48,8 +48,12 @@ serve(async (req) => {
     }
 
     // Create FormData to send to Python API (it expects multipart/form-data)
+    // Convert File to Blob for proper FormData handling in Deno
+    const arrayBuffer = await imageFile.arrayBuffer();
+    const blob = new Blob([arrayBuffer], { type: imageFile.type || 'image/jpeg' });
+    
     const pythonFormData = new FormData();
-    pythonFormData.append('image', imageFile, imageFile.name || 'capture.jpg');
+    pythonFormData.append('image', blob, imageFile.name || 'capture.jpg');
     pythonFormData.append('session_id', sessionId);
     pythonFormData.append('confidence_threshold', '0.6');
 
