@@ -10,11 +10,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { RoleHierarchy } from '@/components/roles/RoleHierarchy';
 import { RoleAuditTrail } from '@/components/roles/RoleAuditTrail';
 import { UserRolesList } from '@/components/roles/UserRolesList';
-
+import { CredentialsDialog } from '@/components/user';
 
 export default function DepartmentAdminManagement() {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    email: string;
+    password: string;
+    emailSent: boolean;
+  } | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -49,14 +55,13 @@ export default function DepartmentAdminManagement() {
         return;
       }
 
-      // Display credentials immediately
-      toast.success('Department admin created successfully!', {
-        duration: 10000,
+      // Show credentials dialog
+      setCreatedCredentials({
+        email: data.email,
+        password: data.password,
+        emailSent: data.emailSent || false,
       });
-      toast.info(`Email: ${data.email}\nPassword: ${data.password}`, {
-        duration: 30000,
-        description: 'Please save these credentials. They will not be shown again.',
-      });
+      setShowCredentialsDialog(true);
       
       setFormData({ email: '', name: '', department: '' });
     } catch (error: any) {
@@ -155,6 +160,13 @@ export default function DepartmentAdminManagement() {
       </Card>
 
       <UserRolesList filterRole="department_admin" />
+
+      <CredentialsDialog
+        open={showCredentialsDialog}
+        onClose={() => setShowCredentialsDialog(false)}
+        credentials={createdCredentials}
+        userType="Department Admin"
+      />
     </div>
   );
 }
