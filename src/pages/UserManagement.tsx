@@ -8,8 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { UserPlus, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { RoleHierarchy } from '@/components/roles/RoleHierarchy';
-import { RoleAuditTrail } from '@/components/roles/RoleAuditTrail';
 import { UserRolesList } from '@/components/roles/UserRolesList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CredentialsDialog } from '@/components/user';
@@ -111,11 +109,6 @@ export default function UserManagement() {
         <p className="text-muted-foreground mt-2">
           Add faculty and students to your department
         </p>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <RoleHierarchy currentRole={profile.role} />
-        <RoleAuditTrail />
       </div>
 
       {/* Add Individual User */}

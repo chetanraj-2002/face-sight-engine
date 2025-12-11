@@ -7,8 +7,6 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { UserPlus, Building } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { RoleHierarchy } from '@/components/roles/RoleHierarchy';
-import { RoleAuditTrail } from '@/components/roles/RoleAuditTrail';
 import { UserRolesList } from '@/components/roles/UserRolesList';
 import { CredentialsDialog } from '@/components/user';
 
@@ -116,11 +114,6 @@ export default function DepartmentAdminManagement() {
         <p className="text-muted-foreground mt-2">
           Manage departments and their administrators for {profile.institute}
         </p>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <RoleHierarchy currentRole={profile.role} />
-        <RoleAuditTrail />
       </div>
 
       <Card>
