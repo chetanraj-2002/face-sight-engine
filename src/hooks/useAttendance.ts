@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -7,6 +7,46 @@ export const useAttendance = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeSession, setActiveSession] = useState<any>(null);
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    const channel = supabase
+      .channel('attendance-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'attendance_logs',
+        },
+        (payload) => {
+          // Only update if it's for the active session
+          if (activeSession?.session_id && payload.new.session_id === activeSession.session_id) {
+            queryClient.invalidateQueries({ queryKey: ['attendance-logs', activeSession.session_id] });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'attendance_sessions',
+        },
+        (payload) => {
+          queryClient.invalidateQueries({ queryKey: ['attendance-sessions'] });
+          // Update active session if it was modified
+          if (activeSession?.session_id && payload.new && (payload.new as any).session_id === activeSession.session_id) {
+            setActiveSession(payload.new);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeSession?.session_id, queryClient]);
 
   // Fetch sessions
   const { data: sessions, isLoading: loadingSessions } = useQuery({
@@ -101,6 +141,7 @@ export const useAttendance = () => {
         title: 'Attendance Marked',
         description: `Marked ${data.marked_count} students present`,
       });
+      // Real-time will handle the update, but also invalidate for immediate feedback
       queryClient.invalidateQueries({ queryKey: ['attendance-logs'] });
       queryClient.invalidateQueries({ queryKey: ['attendance-sessions'] });
     },
