@@ -1,12 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Image, Brain, UserCheck, RefreshCw } from 'lucide-react';
+import { Users, Image, Brain, UserCheck, RefreshCw, Database, Cpu, ClipboardCheck, ArrowRight } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalImages: 0,
@@ -144,6 +146,63 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-semibold">{stats.todayAttendance}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card 
+          className="group cursor-pointer hover:border-primary/30 hover:shadow-card transition-all"
+          onClick={() => navigate('/dataset')}
+        >
+          <CardContent className="flex items-center justify-between p-5">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                <Database className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Dataset</p>
+                <p className="text-sm text-muted-foreground">Manage student images</p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="group cursor-pointer hover:border-primary/30 hover:shadow-card transition-all"
+          onClick={() => navigate('/training')}
+        >
+          <CardContent className="flex items-center justify-between p-5">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                <Cpu className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Training</p>
+                <p className="text-sm text-muted-foreground">Train recognition model</p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="group cursor-pointer hover:border-primary/30 hover:shadow-card transition-all"
+          onClick={() => navigate('/attendance')}
+        >
+          <CardContent className="flex items-center justify-between p-5">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                <ClipboardCheck className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Attendance</p>
+                <p className="text-sm text-muted-foreground">Mark attendance</p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
           </CardContent>
         </Card>
       </div>
