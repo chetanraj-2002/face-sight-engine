@@ -42,16 +42,22 @@ export default function DepartmentAdminManagement() {
         },
       });
 
-      // Check for error in response data first (this handles 409 errors)
-      if (data?.error || data?.code === 'user_exists') {
-        toast.error(data.error || 'A user with this email already exists. Please use a different email address.');
+      // Handle network/connection errors - check if error contains response data
+      if (error) {
+        console.error('Function error:', error);
+        // Try to parse error message for user-friendly display
+        const errorMessage = error.message || '';
+        if (errorMessage.includes('user_exists') || errorMessage.includes('already exists')) {
+          toast.error('A user with this email already exists. Please use a different email address.');
+        } else {
+          toast.error('Failed to create department admin. Please try again.');
+        }
         return;
       }
 
-      // Handle network/connection errors
-      if (error) {
-        console.error('Network error:', error);
-        toast.error('Failed to create department admin. Please try again.');
+      // Check for error in response data (this handles 4xx errors returned as data)
+      if (data?.error || data?.code === 'user_exists') {
+        toast.error(data.error || 'A user with this email already exists. Please use a different email address.');
         return;
       }
 
@@ -66,11 +72,23 @@ export default function DepartmentAdminManagement() {
       setFormData({ email: '', name: '', department: '' });
     } catch (error: any) {
       console.error('Error creating department admin:', error);
-      const errorMessage = error?.message || 'An unexpected error occurred';
+      // Parse error body if available
+      let errorMessage = 'An unexpected error occurred';
+      try {
+        if (error?.context?.body) {
+          const body = JSON.parse(error.context.body);
+          errorMessage = body.error || errorMessage;
+        } else if (error?.message) {
+          errorMessage = error.message;
+        }
+      } catch {
+        // Keep default message
+      }
+      
       if (errorMessage.includes('user_exists') || errorMessage.includes('already exists')) {
         toast.error('A user with this email already exists. Please use a different email address.');
       } else {
-        toast.error('Failed to create department admin. Please try again.');
+        toast.error(errorMessage);
       }
     } finally {
       setLoading(false);
