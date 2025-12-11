@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAttendance } from '@/hooks/useAttendance';
 import CameraCapture from '@/components/attendance/CameraCapture';
 import { AbsentStudentsList } from '@/components/attendance/AbsentStudentsList';
-import { Plus, Upload, Download, Clock } from 'lucide-react';
+import { Plus, Upload, Download, Clock, X, Eye, Play } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -19,6 +19,7 @@ export default function Attendance() {
   const [subject, setSubject] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewingSession, setViewingSession] = useState<typeof activeSession>(null);
 
   const {
     sessions,
@@ -55,6 +56,10 @@ export default function Attendance() {
 
   const attendancePercentage = activeSession
     ? ((activeSession.total_marked / activeSession.total_students) * 100).toFixed(1)
+    : '0';
+
+  const viewingPercentage = viewingSession
+    ? ((viewingSession.total_marked / viewingSession.total_students) * 100).toFixed(1)
     : '0';
 
   return (
@@ -103,8 +108,8 @@ export default function Attendance() {
         </Dialog>
       </div>
 
-      {/* Active Session */}
-      {activeSession && (
+      {/* Active Session - Only for truly active sessions */}
+      {activeSession && activeSession.status === 'active' && (
         <Card className="border-primary">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -190,7 +195,7 @@ export default function Attendance() {
       )}
 
       {/* Attendance Records for Active Session */}
-      {activeSession && attendanceRecords && attendanceRecords.length > 0 && (
+      {activeSession && activeSession.status === 'active' && attendanceRecords && attendanceRecords.length > 0 && (
         <>
           <Card>
             <CardHeader>
@@ -239,6 +244,100 @@ export default function Attendance() {
         </>
       )}
 
+      {/* View-Only Section for Completed Sessions */}
+      {viewingSession && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Session Records</CardTitle>
+                <CardDescription>
+                  {viewingSession.class_name} - {viewingSession.subject || 'General'} | {new Date(viewingSession.started_at).toLocaleDateString()}
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">
+                  {viewingSession.status}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setViewingSession(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Students Present</p>
+                <p className="text-2xl font-bold">{viewingSession.total_marked}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Students</p>
+                <p className="text-2xl font-bold">{viewingSession.total_students}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Attendance</p>
+                <p className="text-2xl font-bold">{viewingPercentage}%</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => exportAttendance(viewingSession.session_id)}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </div>
+
+            {/* Attendance Records for Viewing Session */}
+            {attendanceRecords && attendanceRecords.length > 0 && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>USN</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Class</TableHead>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>Confidence</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {attendanceRecords.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell>{record.usn}</TableCell>
+                      <TableCell>{record.name}</TableCell>
+                      <TableCell>{record.class}</TableCell>
+                      <TableCell>
+                        {new Date(record.timestamp).toLocaleTimeString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {(record.confidence * 100).toFixed(1)}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+
+            {/* Show absent students for faculty and department admins */}
+            {(profile?.role === 'faculty' || profile?.role === 'department_admin') && (
+              <AbsentStudentsList 
+                sessionId={viewingSession.session_id} 
+                className={viewingSession.class_name}
+              />
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Past Sessions */}
       <Card>
         <CardHeader>
@@ -279,13 +378,31 @@ export default function Attendance() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setActiveSession(session)}
-                      >
-                        View
-                      </Button>
+                      {session.status === 'active' ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setViewingSession(null);
+                            setActiveSession(session);
+                          }}
+                        >
+                          <Play className="mr-1 h-3 w-3" />
+                          Resume
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setActiveSession(session);
+                            setViewingSession(session);
+                          }}
+                        >
+                          <Eye className="mr-1 h-3 w-3" />
+                          View
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
