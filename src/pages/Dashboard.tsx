@@ -1,9 +1,8 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Image, Brain, UserCheck, Building, GraduationCap, RefreshCw } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, Image, Brain, UserCheck, RefreshCw } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
@@ -13,8 +12,6 @@ export default function Dashboard() {
     totalImages: 0,
     recentRecognitions: 0,
     todayAttendance: 0,
-    totalInstitutes: 0,
-    totalDepartments: 0,
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -24,55 +21,24 @@ export default function Dashboard() {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
 
-    // Base queries that will be filtered based on role
-    let usersQuery = supabase.from('users').select('*', { count: 'exact', head: true });
-    let imagesQuery = supabase.from('face_images').select('*', { count: 'exact', head: true });
-    let recognitionsQuery = supabase.from('recognition_history').select('*', { count: 'exact', head: true }).gte('timestamp', yesterday.toISOString());
-    let attendanceQuery = supabase.from('attendance_logs').select('*', { count: 'exact', head: true }).gte('timestamp', today.toISOString());
-
-    // Apply role-based filters
-    if (profile?.role === 'faculty' && profile?.class) {
-      usersQuery = usersQuery.eq('class', profile.class);
-      attendanceQuery = attendanceQuery.eq('class', profile.class);
-    } else if (profile?.role === 'department_admin' && profile?.department) {
-      // For department_admin, don't filter by class - show all users they have access to
-    }
-
-    // Execute queries
     const [usersCount, imagesCount, recognitionsCount, attendanceCount] = await Promise.all([
-      usersQuery,
-      imagesQuery,
-      recognitionsQuery,
-      attendanceQuery,
+      supabase.from('users').select('*', { count: 'exact', head: true }),
+      supabase.from('face_images').select('*', { count: 'exact', head: true }),
+      supabase.from('recognition_history').select('*', { count: 'exact', head: true }).gte('timestamp', yesterday.toISOString()),
+      supabase.from('attendance_logs').select('*', { count: 'exact', head: true }).gte('timestamp', today.toISOString()),
     ]);
-
-    // Get unique institutes and departments for super admin
-    let totalInstitutes = 0;
-    let totalDepartments = 0;
-    
-    if (profile?.role === 'super_admin') {
-      const { data: profiles } = await supabase.from('profiles').select('institute, department');
-      if (profiles) {
-        totalInstitutes = new Set(profiles.map(p => p.institute).filter(Boolean)).size;
-        totalDepartments = new Set(profiles.map(p => p.department).filter(Boolean)).size;
-      }
-    }
 
     setStats({
       totalUsers: usersCount.count || 0,
       totalImages: imagesCount.count || 0,
       recentRecognitions: recognitionsCount.count || 0,
       todayAttendance: attendanceCount.count || 0,
-      totalInstitutes,
-      totalDepartments,
     });
-  }, [profile]);
+  }, []);
 
   useEffect(() => {
-    if (profile) {
-      fetchStats();
-    }
-  }, [profile, fetchStats]);
+    fetchStats();
+  }, [fetchStats]);
 
   // Real-time subscription for live updates
   useEffect(() => {
@@ -101,131 +67,86 @@ export default function Dashboard() {
     await fetchStats();
     setIsRefreshing(false);
   };
-  const getRoleDisplay = () => {
-    if (!profile?.role) return 'User';
-    return profile.role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-  };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of your face recognition system</p>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Welcome{profile?.name ? `, ${profile.name}` : ''}
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Here's your attendance system overview
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Badge variant="secondary" className="text-sm">
-            {getRoleDisplay()}
-          </Badge>
-        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleRefresh} 
+          disabled={isRefreshing}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
-      {profile && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome, {profile.name}</CardTitle>
-            <CardDescription>
-              {profile.class && `Class: ${profile.class}`}
-              {profile.department && ` | ${profile.department}`}
-              {profile.institute && ` - ${profile.institute}`}
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {profile?.role === 'super_admin' && (
-          <>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Institutes</CardTitle>
-                <Building className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalInstitutes}</div>
-                <p className="text-xs text-muted-foreground">Registered institutes</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Departments</CardTitle>
-                <GraduationCap className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalDepartments}</div>
-                <p className="text-xs text-muted-foreground">Across all institutes</p>
-              </CardContent>
-            </Card>
-          </>
-        )}
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="hover:border-primary/20 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Students
+            </CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Users className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              {profile?.role === 'faculty' ? 'In your class' : profile?.role === 'department_admin' ? 'In your department' : 'Registered in system'}
-            </p>
+            <div className="text-3xl font-semibold">{stats.totalUsers}</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Face Images</CardTitle>
-            <Image className="h-4 w-4 text-muted-foreground" />
+        <Card className="hover:border-primary/20 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Face Images
+            </CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Image className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalImages}</div>
-            <p className="text-xs text-muted-foreground">Training dataset</p>
+            <div className="text-3xl font-semibold">{stats.totalImages}</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recent Recognitions</CardTitle>
-            <Brain className="h-4 w-4 text-muted-foreground" />
+        <Card className="hover:border-primary/20 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Recognitions (24h)
+            </CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Brain className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.recentRecognitions}</div>
-            <p className="text-xs text-muted-foreground">Last 24 hours</p>
+            <div className="text-3xl font-semibold">{stats.recentRecognitions}</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
+        <Card className="hover:border-primary/20 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Today's Attendance
+            </CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <UserCheck className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.todayAttendance}</div>
-            <p className="text-xs text-muted-foreground">Students marked present</p>
+            <div className="text-3xl font-semibold">{stats.todayAttendance}</div>
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common tasks based on your role</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">
-            {profile?.role === 'super_admin' && <p>• Manage all institutes, departments, and users</p>}
-            {profile?.role === 'institute_admin' && <p>• Manage your institute's departments and users</p>}
-            {profile?.role === 'department_admin' && <p>• Manage your department's students and attendance</p>}
-            {profile?.role === 'faculty' && <p>• Manage your class students and view attendance</p>}
-            {profile?.role === 'student' && <p>• View your attendance records</p>}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
