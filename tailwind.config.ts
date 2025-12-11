@@ -71,9 +71,15 @@ export default {
 			boxShadow: {
 				'glow': 'var(--shadow-glow)',
 				'card': 'var(--shadow-card)',
+				'elevated': 'var(--shadow-elevated)',
 			},
 			transitionTimingFunction: {
-				'smooth': 'var(--transition-smooth)',
+				'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
+				'fast': 'cubic-bezier(0.4, 0, 1, 1)',
+			},
+			transitionDuration: {
+				'fast': '150ms',
+				'normal': '200ms',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
