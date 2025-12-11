@@ -1,8 +1,9 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Database, GraduationCap, Brain, UserCheck, LayoutDashboard, LogOut, Building2, Building, Users, Activity, FolderSync, FileSearch, Smartphone, Settings } from 'lucide-react';
+import { Database, GraduationCap, Brain, UserCheck, LayoutDashboard, LogOut, Building2, Building, Users, Activity, FolderSync, FileSearch, Smartphone, Settings, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
+import { useState } from 'react';
 
 const getNavigationForRole = (role: string | undefined) => {
   const baseNav = [
@@ -49,60 +50,106 @@ const getNavigationForRole = (role: string | undefined) => {
 export default function Layout() {
   const location = useLocation();
   const { signOut, profile } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navigation = getNavigationForRole(profile?.role);
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="flex h-16 items-center justify-between border-b px-6">
-        <div className="flex items-center gap-2">
-          <GraduationCap className="h-6 w-6" />
-          <span className="text-xl font-bold">Face Recognition</span>
-        </div>
-        <div className="flex items-center gap-4">
-          {profile && (
-            <div className="text-sm text-muted-foreground">
-              <span className="font-medium">{profile.name}</span>
-              {profile.role && (
-                <>
-                  {' • '}
-                  <span className="capitalize">{profile.role.replace('_', ' ')}</span>
-                </>
+      {/* Header */}
+      <header className="sticky top-0 z-40 h-14 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-full items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              {sidebarOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
               )}
+            </Button>
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-foreground hidden sm:inline">Face Recognition</span>
             </div>
-          )}
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {profile && (
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {profile.name}
+              </span>
+            )}
+            <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
+              <LogOut className="h-4 w-4" />
+              <span className="ml-2 hidden sm:inline">Sign Out</span>
+            </Button>
+          </div>
         </div>
-      </div>
+      </header>
 
       <div className="flex">
-        <aside className="w-64 border-r min-h-[calc(100vh-4rem)]">
-          <nav className="p-4 space-y-1">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
-                    location.pathname === item.href
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+        {/* Sidebar Overlay */}
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar */}
+        <aside 
+          className={cn(
+            "fixed left-0 top-14 z-30 h-[calc(100vh-3.5rem)] w-64 border-r bg-background transition-transform duration-200 ease-out",
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <nav className="flex flex-col h-full p-3">
+            <div className="flex-1 space-y-1">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    onClick={() => setSidebarOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all duration-150',
+                      isActive
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    )}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+            
+            {/* User info at bottom */}
+            {profile && (
+              <div className="border-t pt-3 mt-3">
+                <div className="px-3 py-2">
+                  <p className="text-sm font-medium text-foreground truncate">{profile.name}</p>
+                  {profile.role && (
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {profile.role.replace('_', ' ')}
+                    </p>
                   )}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
+                </div>
+              </div>
+            )}
           </nav>
         </aside>
 
-        <main className="flex-1">
+        {/* Main Content */}
+        <main className="flex-1 min-h-[calc(100vh-3.5rem)]">
           <Outlet />
         </main>
       </div>
