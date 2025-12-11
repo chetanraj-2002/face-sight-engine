@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { RoleHierarchy } from '@/components/roles/RoleHierarchy';
 import { RoleAuditTrail } from '@/components/roles/RoleAuditTrail';
 import { UserRolesList } from '@/components/roles/UserRolesList';
+import { CredentialsDialog } from '@/components/user';
 
 import {
   AlertDialog,
@@ -27,6 +28,12 @@ export default function InstitutionManagement() {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    email: string;
+    password: string;
+    emailSent: boolean;
+  } | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -60,14 +67,13 @@ export default function InstitutionManagement() {
         return;
       }
 
-      // Display credentials immediately
-      toast.success('Institution admin created successfully!', {
-        duration: 10000,
+      // Show credentials dialog
+      setCreatedCredentials({
+        email: data.email,
+        password: data.password,
+        emailSent: data.emailSent || false,
       });
-      toast.info(`Email: ${data.email}\nPassword: ${data.password}`, {
-        duration: 30000,
-        description: 'Please save these credentials. They will not be shown again.',
-      });
+      setShowCredentialsDialog(true);
       
       setFormData({ email: '', name: '', institute: '' });
     } catch (error: any) {
@@ -235,6 +241,13 @@ export default function InstitutionManagement() {
           </AlertDialog>
         </CardContent>
       </Card>
+
+      <CredentialsDialog
+        open={showCredentialsDialog}
+        onClose={() => setShowCredentialsDialog(false)}
+        credentials={createdCredentials}
+        userType="Institution Admin"
+      />
     </div>
   );
 }

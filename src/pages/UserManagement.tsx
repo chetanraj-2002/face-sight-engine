@@ -12,11 +12,17 @@ import { RoleHierarchy } from '@/components/roles/RoleHierarchy';
 import { RoleAuditTrail } from '@/components/roles/RoleAuditTrail';
 import { UserRolesList } from '@/components/roles/UserRolesList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
+import { CredentialsDialog } from '@/components/user';
 
 export default function UserManagement() {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    email: string;
+    password: string;
+    emailSent: boolean;
+  } | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -24,7 +30,6 @@ export default function UserManagement() {
     class: '',
     role: 'student' as 'faculty' | 'student',
   });
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -55,13 +60,13 @@ export default function UserManagement() {
         return;
       }
 
-      // Check if email was sent by the edge function
-      if (data?.emailSent) {
-        toast.success(`${formData.role === 'faculty' ? 'Faculty' : 'Student'} created successfully! Credentials sent to ${formData.email}`);
-      } else {
-        toast.success(`${formData.role === 'faculty' ? 'Faculty' : 'Student'} created successfully!`);
-        toast.warning('Email sending failed. Please share credentials manually.');
-      }
+      // Show credentials dialog
+      setCreatedCredentials({
+        email: data.email,
+        password: data.password,
+        emailSent: data.emailSent || false,
+      });
+      setShowCredentialsDialog(true);
       
       setFormData({ email: '', name: '', usn: '', class: '', role: 'student' });
     } catch (error: any) {
@@ -252,6 +257,13 @@ export default function UserManagement() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <CredentialsDialog
+        open={showCredentialsDialog}
+        onClose={() => setShowCredentialsDialog(false)}
+        credentials={createdCredentials}
+        userType={createdCredentials ? (formData.role === 'faculty' ? 'Faculty' : 'Student') : 'User'}
+      />
     </div>
   );
 }
