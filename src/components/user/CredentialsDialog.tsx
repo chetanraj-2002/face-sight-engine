@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 interface CredentialsDialogProps {
   open: boolean;
   onClose: () => void;
+  onCreateAnother?: () => void;
   credentials: {
     email: string;
     password: string;
@@ -25,6 +26,7 @@ interface CredentialsDialogProps {
 export function CredentialsDialog({ 
   open, 
   onClose, 
+  onCreateAnother,
   credentials, 
   userType = 'User' 
 }: CredentialsDialogProps) {
@@ -151,8 +153,20 @@ export function CredentialsDialog({
           </Button>
         </div>
 
-        <DialogFooter>
-          <Button onClick={onClose} className="w-full">
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {onCreateAnother && (
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                onClose();
+                onCreateAnother();
+              }}
+              className="w-full sm:w-auto"
+            >
+              Create Another
+            </Button>
+          )}
+          <Button onClick={onClose} className="w-full sm:w-auto">
             Close
           </Button>
         </DialogFooter>
