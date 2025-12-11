@@ -1,4 +1,5 @@
 import { NotificationPreferences } from '@/components/notifications/NotificationPreferences';
+import { ChangePassword } from '@/components/settings/ChangePassword';
 
 export default function Settings() {
   return (
@@ -10,7 +11,8 @@ export default function Settings() {
         </p>
       </div>
 
-      <div className="max-w-2xl">
+      <div className="max-w-2xl space-y-6">
+        <ChangePassword />
         <NotificationPreferences />
       </div>
     </div>
