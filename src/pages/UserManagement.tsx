@@ -10,7 +10,7 @@ import { UserPlus, Upload, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRolesList } from '@/components/roles/UserRolesList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CredentialsDialog, UserDetailsList } from '@/components/user';
+import { CredentialsDialog } from '@/components/user';
 import LiveCameraCapture from '@/components/dataset/LiveCameraCapture';
 
 export default function UserManagement() {
@@ -307,19 +307,6 @@ export default function UserManagement() {
               Coming soon: Upload multiple students at once via Excel
             </p>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* User Details by Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>User Directory</CardTitle>
-          <CardDescription>
-            View students section-wise and faculty members
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <UserDetailsList />
         </CardContent>
       </Card>
 

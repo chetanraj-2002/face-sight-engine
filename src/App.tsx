@@ -13,6 +13,7 @@ import Attendance from "./pages/Attendance";
 import InstitutionManagement from "./pages/InstitutionManagement";
 import DepartmentAdminManagement from "./pages/DepartmentAdminManagement";
 import UserManagement from "./pages/UserManagement";
+import UserDirectory from "./pages/UserDirectory";
 import AttendanceReports from "./pages/AttendanceReports";
 import StudentAttendance from "./pages/StudentAttendance";
 import BatchOperations from "./pages/BatchOperations";
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/institutions" element={<InstitutionManagement />} />
               <Route path="/departments" element={<DepartmentAdminManagement />} />
               <Route path="/users" element={<UserManagement />} />
+              <Route path="/user-directory" element={<UserDirectory />} />
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/attendance-reports" element={<AttendanceReports />} />
               <Route path="/my-attendance" element={<StudentAttendance />} />
