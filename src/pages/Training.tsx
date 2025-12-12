@@ -4,8 +4,9 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTraining } from '@/hooks/useTraining';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useEffect } from 'react';
 import { Database, Zap, RefreshCw, TrendingUp, Activity, CheckCircle, XCircle, Layers } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
@@ -18,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function Training() {
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const isSuperAdmin = profile?.role === 'super_admin';
 
   const {
@@ -93,6 +95,31 @@ export default function Training() {
       };
     },
   });
+
+  // Real-time updates for system health metrics (super_admin only)
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+
+    const channels = [
+      supabase
+        .channel('model-versions-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'model_versions' }, () => {
+          queryClient.invalidateQueries({ queryKey: ['system-health'] });
+        })
+        .subscribe(),
+      supabase
+        .channel('training-jobs-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'training_jobs' }, () => {
+          queryClient.invalidateQueries({ queryKey: ['system-health'] });
+          queryClient.invalidateQueries({ queryKey: ['training-jobs'] });
+        })
+        .subscribe(),
+    ];
+
+    return () => {
+      channels.forEach(channel => supabase.removeChannel(channel));
+    };
+  }, [isSuperAdmin, queryClient]);
 
   // Fetch batch tracking data
   const { data: batchHistory } = useQuery({
