@@ -42,13 +42,13 @@ export function CredentialsDialog({
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(15);
   const [isPaused, setIsPaused] = useState(false);
 
   // Auto-proceed countdown for face capture
   useEffect(() => {
     if (!open || !showFaceCaptureOption || !autoProceedException || isPaused) {
-      setCountdown(5);
+      setCountdown(15);
       return;
     }
 
@@ -67,7 +67,7 @@ export function CredentialsDialog({
   // Reset countdown when dialog opens
   useEffect(() => {
     if (open) {
-      setCountdown(5);
+      setCountdown(15);
       setIsPaused(false);
     }
   }, [open]);
@@ -206,7 +206,7 @@ export function CredentialsDialog({
                 Pause
               </Button>
             </div>
-            <Progress value={(5 - countdown) * 20} className="h-1" />
+            <Progress value={((15 - countdown) / 15) * 100} className="h-1" />
           </div>
         )}
 
