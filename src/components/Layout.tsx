@@ -104,8 +104,9 @@ export default function Layout() {
         {/* Sidebar */}
         <aside 
           className={cn(
-            "fixed left-0 top-14 z-30 h-[calc(100vh-3.5rem)] w-64 border-r bg-background transition-transform duration-200 ease-out",
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            "fixed left-0 top-14 z-30 h-[calc(100vh-3.5rem)] w-64 border-r bg-background shadow-lg",
+            "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+            sidebarOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
           )}
         >
           <nav className="flex flex-col h-full p-3">
