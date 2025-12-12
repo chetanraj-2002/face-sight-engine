@@ -93,10 +93,10 @@ export default function Layout() {
       </header>
 
       <div className="flex">
-        {/* Sidebar Overlay */}
+        {/* Sidebar Overlay - Click anywhere to close */}
         {sidebarOpen && (
           <div 
-            className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-20 bg-background/50 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
         )}
