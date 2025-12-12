@@ -6,18 +6,46 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Secret key required to call this function - must be set as BOOTSTRAP_RESET_SECRET
+const RESET_SECRET = Deno.env.get("BOOTSTRAP_RESET_SECRET");
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // SECURITY: Require a secret key to call this function
+    const { reset_secret } = await req.json();
+    
+    if (!RESET_SECRET) {
+      console.error("BOOTSTRAP_RESET_SECRET not configured - function disabled");
+      return new Response(
+        JSON.stringify({ error: "Reset function is disabled. Configure BOOTSTRAP_RESET_SECRET to enable." }),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+    
+    if (!reset_secret || reset_secret !== RESET_SECRET) {
+      console.error("Invalid or missing reset_secret");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized. Valid reset_secret required." }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log("Resetting bootstrap - deleting existing super admins");
+    console.log("Resetting bootstrap - deleting existing super admins (authorized request)");
 
     // Get all super admin user IDs
     const { data: superAdminRoles } = await supabaseAdmin
