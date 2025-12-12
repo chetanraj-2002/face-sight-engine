@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { GraduationCap, UserCheck, LayoutDashboard, LogOut, Building2, Building, Users, Activity, FolderSync, FileSearch, Smartphone, Settings, Menu, X, ArrowLeft } from 'lucide-react';
+import { GraduationCap, UserCheck, LayoutDashboard, LogOut, Building2, Building, Users, Activity, FolderSync, FileSearch, Smartphone, Settings, Menu, X, ArrowLeft, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
@@ -22,6 +22,7 @@ const getNavigationForRole = (role: string | undefined) => {
     ],
     department_admin: [
       { name: 'User Management', href: '/users', icon: Users },
+      { name: 'Model Training', href: '/training', icon: Brain },
       { name: 'Attendance', href: '/attendance', icon: UserCheck },
       { name: 'Reports', href: '/attendance-reports', icon: Activity },
       { name: 'Batch Operations', href: '/batch-operations', icon: FolderSync },
