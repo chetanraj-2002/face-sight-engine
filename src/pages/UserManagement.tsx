@@ -100,14 +100,20 @@ export default function UserManagement() {
   const handleStartFaceCapture = () => {
     if (pendingFaceCapture) {
       setIsCapturingFace(true);
+      setShowCredentialsDialog(false);
     }
+  };
+
+  const handleCaptureFaceForExisting = (userId: string, usn: string, name: string) => {
+    setPendingFaceCapture({ datasetUserId: userId, usn, name });
+    setIsCapturingFace(true);
   };
 
   const handleFaceCaptureComplete = () => {
     setIsCapturingFace(false);
     setPendingFaceCapture(null);
     setFormData({ email: '', name: '', usn: '', class: '', role: 'student' });
-    toast.success('User setup complete with face data!');
+    toast.success('Face data captured successfully!');
   };
 
   const handleCancelFaceCapture = () => {
@@ -311,13 +317,13 @@ export default function UserManagement() {
               <TabsTrigger value="student">Students</TabsTrigger>
             </TabsList>
             <TabsContent value="all" className="mt-6">
-              <UserRolesList />
+              <UserRolesList onCaptureFace={handleCaptureFaceForExisting} />
             </TabsContent>
             <TabsContent value="faculty" className="mt-6">
-              <UserRolesList filterRole="faculty" />
+              <UserRolesList filterRole="faculty" onCaptureFace={handleCaptureFaceForExisting} />
             </TabsContent>
             <TabsContent value="student" className="mt-6">
-              <UserRolesList filterRole="student" />
+              <UserRolesList filterRole="student" onCaptureFace={handleCaptureFaceForExisting} />
             </TabsContent>
           </Tabs>
         </CardContent>

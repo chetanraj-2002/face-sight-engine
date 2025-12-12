@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Users, Trash2, Building2, Building } from 'lucide-react';
+import { Users, Trash2, Building2, Building, Camera, ImageOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -30,15 +30,22 @@ interface UserRole {
   profile?: {
     name: string;
     email: string | null;
+    usn: string | null;
   };
+  datasetUser?: {
+    id: string;
+    usn: string;
+    image_count: number;
+  } | null;
 }
 
 interface UserRolesListProps {
   filterRole?: string;
   onRoleRemoved?: () => void;
+  onCaptureFace?: (userId: string, usn: string, name: string) => void;
 }
 
-export function UserRolesList({ filterRole, onRoleRemoved }: UserRolesListProps) {
+export function UserRolesList({ filterRole, onRoleRemoved, onCaptureFace }: UserRolesListProps) {
   const { profile } = useAuth();
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,20 +78,33 @@ export function UserRolesList({ filterRole, onRoleRemoved }: UserRolesListProps)
 
       if (error) throw error;
       
-      // Fetch related profiles
+      // Fetch related profiles and dataset users
       if (data) {
         const userIds = data.map(d => d.user_id);
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, name, email')
+          .select('id, name, email, usn')
           .in('id', userIds);
         
         const profileMap = new Map(profiles?.map(p => [p.id, p]));
         
-        const enrichedData = data.map(role => ({
-          ...role,
-          profile: profileMap.get(role.user_id),
-        }));
+        // Fetch dataset users by USN to check image counts
+        const usns = profiles?.filter(p => p.usn).map(p => p.usn) || [];
+        const { data: datasetUsers } = await supabase
+          .from('users')
+          .select('id, usn, image_count')
+          .in('usn', usns);
+        
+        const datasetUserMap = new Map(datasetUsers?.map(u => [u.usn, u]));
+        
+        const enrichedData = data.map(role => {
+          const profile = profileMap.get(role.user_id);
+          return {
+            ...role,
+            profile,
+            datasetUser: profile?.usn ? datasetUserMap.get(profile.usn) || null : null,
+          };
+        });
         
         setRoles(enrichedData as UserRole[]);
       }
@@ -208,35 +228,65 @@ export function UserRolesList({ filterRole, onRoleRemoved }: UserRolesListProps)
                       )}
                     </div>
                     
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={removing === userRole.id}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remove Role</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to remove the {userRole.role.replace('_', ' ')} role from{' '}
-                            {userRole.profile?.name}? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleRemoveRole(userRole.id, userRole.user_id, userRole.role)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    <div className="flex items-center gap-1">
+                      {/* Face capture status and action */}
+                      {userRole.datasetUser ? (
+                        userRole.datasetUser.image_count === 0 ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onCaptureFace?.(
+                              userRole.datasetUser!.id,
+                              userRole.datasetUser!.usn,
+                              userRole.profile?.name || 'User'
+                            )}
+                            className="text-amber-600 border-amber-200 hover:bg-amber-50"
                           >
-                            Remove Role
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                            <Camera className="h-4 w-4 mr-1" />
+                            Capture Face
+                          </Button>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-200">
+                            {userRole.datasetUser.image_count} images
+                          </Badge>
+                        )
+                      ) : userRole.profile?.usn ? (
+                        <Badge variant="secondary" className="text-xs bg-muted text-muted-foreground">
+                          <ImageOff className="h-3 w-3 mr-1" />
+                          No dataset
+                        </Badge>
+                      ) : null}
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={removing === userRole.id}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove Role</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to remove the {userRole.role.replace('_', ' ')} role from{' '}
+                              {userRole.profile?.name}? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleRemoveRole(userRole.id, userRole.user_id, userRole.role)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Remove Role
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                 </div>
               ))}
