@@ -1,5 +1,5 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Database, GraduationCap, Brain, UserCheck, LayoutDashboard, LogOut, Building2, Building, Users, Activity, FolderSync, FileSearch, Smartphone, Settings, Menu, X } from 'lucide-react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Database, GraduationCap, Brain, UserCheck, LayoutDashboard, LogOut, Building2, Building, Users, Activity, FolderSync, FileSearch, Smartphone, Settings, Menu, X, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
@@ -49,10 +49,12 @@ const getNavigationForRole = (role: string | undefined) => {
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { signOut, profile } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navigation = getNavigationForRole(profile?.role);
+  const showBackButton = location.pathname !== '/dashboard';
 
   return (
     <div className="min-h-screen bg-background">
@@ -72,6 +74,16 @@ export default function Layout() {
                 <Menu className="h-5 w-5" />
               )}
             </Button>
+            {showBackButton && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => navigate(-1)}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            )}
             <div className="flex items-center gap-2">
               <GraduationCap className="h-5 w-5 text-primary" />
               <span className="font-semibold text-foreground hidden sm:inline">Face Recognition</span>
