@@ -20,58 +20,103 @@ serve(async (req) => {
 
     console.log(`Starting auto-capture upload for ${usn} with ${images.length} images`);
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    // Upload all images
-    const uploadPromises = images.map(async (base64Image: string, index: number) => {
-      // Remove data URL prefix if present
-      const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-      const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-      
-      const fileName = `${usn}/${String(index).padStart(5, '0')}.jpg`;
-      
-      // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('face-images')
-        .upload(fileName, imageBuffer, {
-          contentType: 'image/jpeg',
-          upsert: false,
-        });
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration');
+    }
 
-      if (uploadError) throw uploadError;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('face-images')
-        .getPublicUrl(fileName);
+    // Upload images sequentially to avoid rate limiting
+    const uploadedFiles: string[] = [];
+    let successCount = 0;
+    let errorCount = 0;
 
-      // Save metadata
-      const { error: dbError } = await supabase
-        .from('face_images')
-        .insert({
-          user_id: userId,
-          usn: usn,
-          image_url: publicUrl,
-          storage_path: fileName,
-        });
+    for (let index = 0; index < images.length; index++) {
+      try {
+        const base64Image = images[index];
+        // Remove data URL prefix if present
+        const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+        const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+        
+        const fileName = `${usn}/${String(index).padStart(5, '0')}.jpg`;
+        
+        // Upload to storage with upsert to handle existing files
+        const { error: uploadError } = await supabase.storage
+          .from('face-images')
+          .upload(fileName, imageBuffer, {
+            contentType: 'image/jpeg',
+            upsert: true,
+          });
 
-      if (dbError) throw dbError;
+        if (uploadError) {
+          console.error(`Upload error for ${fileName}:`, uploadError.message);
+          errorCount++;
+          continue;
+        }
 
-      return fileName;
-    });
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('face-images')
+          .getPublicUrl(fileName);
 
-    await Promise.all(uploadPromises);
+        // Check if record already exists
+        const { data: existing } = await supabase
+          .from('face_images')
+          .select('id')
+          .eq('storage_path', fileName)
+          .single();
+
+        if (existing) {
+          // Update existing record
+          await supabase
+            .from('face_images')
+            .update({ image_url: publicUrl })
+            .eq('storage_path', fileName);
+        } else {
+          // Insert new record
+          const { error: dbError } = await supabase
+            .from('face_images')
+            .insert({
+              user_id: userId,
+              usn: usn,
+              image_url: publicUrl,
+              storage_path: fileName,
+            });
+
+          if (dbError) {
+            console.error(`DB error for ${fileName}:`, dbError.message);
+            errorCount++;
+            continue;
+          }
+        }
+
+        uploadedFiles.push(fileName);
+        successCount++;
+
+        // Log progress every 20 images
+        if ((index + 1) % 20 === 0) {
+          console.log(`Progress: ${index + 1}/${images.length} images processed`);
+        }
+      } catch (imgError: any) {
+        console.error(`Error processing image ${index}:`, imgError.message);
+        errorCount++;
+      }
+    }
+
+    console.log(`Upload complete: ${successCount} success, ${errorCount} errors`);
 
     // Update user's image_count
     const { error: updateError } = await supabase
       .from('users')
-      .update({ image_count: images.length })
+      .update({ image_count: successCount })
       .eq('id', userId);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('Error updating user image count:', updateError.message);
+    }
 
     // Get current batch settings
     const { data: settings } = await supabase
@@ -130,13 +175,14 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        imagesUploaded: images.length,
+        imagesUploaded: successCount,
+        errors: errorCount,
         usersInBatch,
         batchSize,
         batchComplete,
         message: batchComplete 
           ? `Batch ${currentBatch} complete! Processing started.`
-          : `User added (${usersInBatch}/${batchSize})`
+          : `User added (${usersInBatch}/${batchSize}). Uploaded ${successCount}/${images.length} images.`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
