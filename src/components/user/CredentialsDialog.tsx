@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Check, Copy, Mail, Key, CheckCircle, AlertTriangle, Camera } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Check, Copy, Mail, Key, CheckCircle, AlertTriangle, Camera, SkipForward } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -10,12 +10,14 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 
 interface CredentialsDialogProps {
   open: boolean;
   onClose: () => void;
   onCreateAnother?: () => void;
   onCaptureFace?: () => void;
+  onSkipFaceCapture?: () => void;
   credentials: {
     email: string;
     password: string;
@@ -23,6 +25,7 @@ interface CredentialsDialogProps {
   } | null;
   userType?: string;
   showFaceCaptureOption?: boolean;
+  autoProceedException?: boolean;
 }
 
 export function CredentialsDialog({ 
@@ -30,13 +33,44 @@ export function CredentialsDialog({
   onClose, 
   onCreateAnother,
   onCaptureFace,
+  onSkipFaceCapture,
   credentials, 
   userType = 'User',
-  showFaceCaptureOption = false
+  showFaceCaptureOption = false,
+  autoProceedException = true
 }: CredentialsDialogProps) {
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // Auto-proceed countdown for face capture
+  useEffect(() => {
+    if (!open || !showFaceCaptureOption || !autoProceedException || isPaused) {
+      setCountdown(5);
+      return;
+    }
+
+    if (countdown <= 0 && onCaptureFace) {
+      onCaptureFace();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown(prev => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [open, countdown, showFaceCaptureOption, autoProceedException, isPaused, onCaptureFace]);
+
+  // Reset countdown when dialog opens
+  useEffect(() => {
+    if (open) {
+      setCountdown(5);
+      setIsPaused(false);
+    }
+  }, [open]);
 
   if (!credentials) return null;
 
@@ -159,25 +193,43 @@ export function CredentialsDialog({
           </Button>
         </div>
 
+        {/* Auto-proceed countdown for face capture */}
+        {showFaceCaptureOption && autoProceedException && !isPaused && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Proceeding to face capture in {countdown}s...</span>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setIsPaused(true)}
+              >
+                Pause
+              </Button>
+            </div>
+            <Progress value={(5 - countdown) * 20} className="h-1" />
+          </div>
+        )}
+
         <DialogFooter className="flex-col sm:flex-row gap-2">
           {showFaceCaptureOption && onCaptureFace ? (
             <>
               <Button 
                 variant="outline" 
-                onClick={onClose}
+                onClick={() => {
+                  onSkipFaceCapture?.();
+                  onClose();
+                }}
                 className="w-full sm:w-auto"
               >
-                Skip Face Capture
+                <SkipForward className="h-4 w-4 mr-2" />
+                Skip for Now
               </Button>
               <Button 
-                onClick={() => {
-                  onClose();
-                  onCaptureFace();
-                }} 
+                onClick={onCaptureFace} 
                 className="w-full sm:w-auto"
               >
                 <Camera className="h-4 w-4 mr-2" />
-                Capture Face Data
+                {isPaused ? 'Capture Face Data' : `Capture Now`}
               </Button>
             </>
           ) : (

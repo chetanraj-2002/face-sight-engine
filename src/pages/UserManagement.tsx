@@ -66,23 +66,26 @@ export default function UserManagement() {
         return;
       }
 
-      // Store credentials and dataset user info for face capture
+      // Store credentials for display
       setCreatedCredentials({
         email: data.email,
         password: data.password,
         emailSent: data.emailSent || false,
       });
       
-      // Store pending face capture info if dataset user was created
+      // Automatically proceed to face capture if dataset user was created
       if (data.datasetUserId && data.usn) {
         setPendingFaceCapture({
           datasetUserId: data.datasetUserId,
           usn: data.usn,
           name: formData.name,
         });
+        // Show credentials briefly, then auto-proceed to face capture
+        setShowCredentialsDialog(true);
+        toast.success(`${formData.role === 'faculty' ? 'Faculty' : 'Student'} created! Proceeding to face capture...`);
+      } else {
+        setShowCredentialsDialog(true);
       }
-      
-      setShowCredentialsDialog(true);
       
     } catch (error: any) {
       console.error('Error creating user:', error);
@@ -102,6 +105,12 @@ export default function UserManagement() {
       setIsCapturingFace(true);
       setShowCredentialsDialog(false);
     }
+  };
+
+  const handleSkipFaceCapture = () => {
+    setPendingFaceCapture(null);
+    setFormData({ email: '', name: '', usn: '', class: '', role: 'student' });
+    toast.info('Face capture skipped. You can capture face data later from the user list.');
   };
 
   const handleCaptureFaceForExisting = (userId: string, usn: string, name: string) => {
@@ -336,6 +345,8 @@ export default function UserManagement() {
         userType={formData.role === 'faculty' ? 'Faculty' : 'Student'}
         showFaceCaptureOption={!!pendingFaceCapture}
         onCaptureFace={handleStartFaceCapture}
+        onSkipFaceCapture={handleSkipFaceCapture}
+        autoProceedException={!!pendingFaceCapture}
       />
     </div>
   );
