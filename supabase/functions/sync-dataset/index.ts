@@ -60,44 +60,57 @@ serve(async (req) => {
       imagesByUsn[img.usn].push(img);
     }
 
-    // Prepare dataset for Python API
+    console.log('Downloading images in parallel batches...');
+    const startTime = Date.now();
+
+    // Prepare dataset for Python API - process in parallel
     const dataset: any[] = [];
-    let totalImagesSynced = 0;
+    const DOWNLOAD_BATCH_SIZE = 20;
 
     for (const user of users || []) {
       const userImages = imagesByUsn[user.usn] || [];
       
-      for (const img of userImages) {
-        try {
-          // Download image from Supabase Storage
-          const { data: imageData, error: downloadError } = await supabaseClient
-            .storage
-            .from('face-images')
-            .download(img.storage_path);
+      // Process user images in parallel batches
+      for (let i = 0; i < userImages.length; i += DOWNLOAD_BATCH_SIZE) {
+        const batch = userImages.slice(i, i + DOWNLOAD_BATCH_SIZE);
+        
+        const results = await Promise.all(
+          batch.map(async (img) => {
+            try {
+              const { data: imageData, error: downloadError } = await supabaseClient
+                .storage
+                .from('face-images')
+                .download(img.storage_path);
 
-          if (downloadError) {
-            console.error(`Failed to download image ${img.storage_path}:`, downloadError);
-            continue;
-          }
+              if (downloadError) {
+                console.error(`Download failed ${img.storage_path}:`, downloadError.message);
+                return null;
+              }
 
-          // Convert to base64
-          const arrayBuffer = await imageData.arrayBuffer();
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+              const arrayBuffer = await imageData.arrayBuffer();
+              const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-          dataset.push({
-            usn: user.usn,
-            name: user.name,
-            class: user.class,
-            image: base64,
-            filename: img.storage_path.split('/').pop(),
-          });
+              return {
+                usn: user.usn,
+                name: user.name,
+                class: user.class,
+                image: base64,
+                filename: img.storage_path.split('/').pop(),
+              };
+            } catch (error: any) {
+              console.error(`Error ${img.storage_path}:`, error.message);
+              return null;
+            }
+          })
+        );
 
-          totalImagesSynced++;
-        } catch (error) {
-          console.error(`Error processing image for ${user.usn}:`, error);
-        }
+        dataset.push(...results.filter(r => r !== null));
       }
     }
+
+    const totalImagesSynced = dataset.length;
+    const downloadTime = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`Downloaded ${totalImagesSynced} images in ${downloadTime}s`);
 
     console.log(`Prepared ${totalImagesSynced} images for sync`);
 
