@@ -26,10 +26,11 @@ interface DepartmentStats {
 }
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const navigate = useNavigate();
   const isInstituteAdmin = profile?.role === 'institute_admin';
   const isSuperAdmin = profile?.role === 'super_admin';
+  const isStudent = profile?.role === 'student';
   
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -56,6 +57,11 @@ export default function Dashboard() {
   });
   const [institutionStats, setInstitutionStats] = useState<InstitutionStats[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [studentStats, setStudentStats] = useState({
+    totalClasses: 0,
+    attended: 0,
+    percentage: 0,
+  });
 
   const fetchStats = useCallback(async () => {
     const today = new Date();
@@ -241,15 +247,47 @@ export default function Dashboard() {
     setInstitutionStats(instStats);
   }, [isSuperAdmin]);
 
+  // Fetch student-specific stats
+  const fetchStudentStats = useCallback(async () => {
+    if (!isStudent || !user || !profile?.class) return;
+
+    // Get total sessions for the student's class
+    const { count: totalCount } = await supabase
+      .from('attendance_sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('class_name', profile.class)
+      .eq('status', 'completed');
+
+    // Get student's attendance count
+    const { count: attendedCount } = await supabase
+      .from('attendance_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id);
+
+    const total = totalCount || 0;
+    const attended = attendedCount || 0;
+    const percentage = total > 0 ? (attended / total) * 100 : 0;
+
+    setStudentStats({
+      totalClasses: total,
+      attended,
+      percentage,
+    });
+  }, [isStudent, user, profile?.class]);
+
   useEffect(() => {
-    fetchStats();
-    if (isInstituteAdmin) {
-      fetchInstituteStats();
+    if (isStudent) {
+      fetchStudentStats();
+    } else {
+      fetchStats();
+      if (isInstituteAdmin) {
+        fetchInstituteStats();
+      }
+      if (isSuperAdmin) {
+        fetchSuperAdminStats();
+      }
     }
-    if (isSuperAdmin) {
-      fetchSuperAdminStats();
-    }
-  }, [fetchStats, fetchInstituteStats, fetchSuperAdminStats, isInstituteAdmin, isSuperAdmin]);
+  }, [fetchStats, fetchInstituteStats, fetchSuperAdminStats, fetchStudentStats, isInstituteAdmin, isSuperAdmin, isStudent]);
 
   // Real-time subscription for live updates
   useEffect(() => {
@@ -306,11 +344,117 @@ export default function Dashboard() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchStats();
-    if (isInstituteAdmin) await fetchInstituteStats();
-    if (isSuperAdmin) await fetchSuperAdminStats();
+    if (isStudent) {
+      await fetchStudentStats();
+    } else {
+      await fetchStats();
+      if (isInstituteAdmin) await fetchInstituteStats();
+      if (isSuperAdmin) await fetchSuperAdminStats();
+    }
     setIsRefreshing(false);
   };
+
+  // Student Dashboard - Simplified view
+  if (isStudent) {
+    const getPercentageColor = (percentage: number) => {
+      if (percentage >= 75) return 'text-green-600';
+      if (percentage >= 50) return 'text-yellow-600';
+      return 'text-red-600';
+    };
+
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">
+              Welcome{profile?.name ? `, ${profile.name}` : ''}
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              {profile?.class} • Track your attendance
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh} 
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Classes
+              </CardTitle>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Activity className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-semibold">{studentStats.totalClasses}</div>
+              <p className="text-xs text-muted-foreground mt-1">in {profile?.class}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Classes Attended
+              </CardTitle>
+              <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-semibold text-green-600">{studentStats.attended}</div>
+              <p className="text-xs text-muted-foreground mt-1">{studentStats.totalClasses - studentStats.attended} missed</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Attendance Rate
+              </CardTitle>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-3xl font-semibold ${getPercentageColor(studentStats.percentage)}`}>
+                {studentStats.percentage.toFixed(1)}%
+              </div>
+              <Progress value={studentStats.percentage} className="mt-2" />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Action */}
+        <Card 
+          className="group cursor-pointer hover:border-primary/30 hover:shadow-card transition-all"
+          onClick={() => navigate('/my-attendance')}
+        >
+          <CardContent className="flex items-center justify-between p-5">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                <UserCheck className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">View Detailed Attendance</p>
+                <p className="text-sm text-muted-foreground">Subject-wise breakdown, trends, and history</p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
