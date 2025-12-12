@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Copy, Mail, Key, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Check, Copy, Mail, Key, CheckCircle, AlertTriangle, Camera } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,20 +15,24 @@ interface CredentialsDialogProps {
   open: boolean;
   onClose: () => void;
   onCreateAnother?: () => void;
+  onCaptureFace?: () => void;
   credentials: {
     email: string;
     password: string;
     emailSent: boolean;
   } | null;
   userType?: string;
+  showFaceCaptureOption?: boolean;
 }
 
 export function CredentialsDialog({ 
   open, 
   onClose, 
   onCreateAnother,
+  onCaptureFace,
   credentials, 
-  userType = 'User' 
+  userType = 'User',
+  showFaceCaptureOption = false
 }: CredentialsDialogProps) {
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
@@ -65,7 +69,9 @@ export function CredentialsDialog({
             {userType} Created Successfully
           </DialogTitle>
           <DialogDescription>
-            Credentials have been generated. Share them with the user.
+            {showFaceCaptureOption 
+              ? 'Credentials generated. Now capture face data for attendance.' 
+              : 'Credentials have been generated. Share them with the user.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -154,21 +160,45 @@ export function CredentialsDialog({
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
-          {onCreateAnother && (
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                onClose();
-                onCreateAnother();
-              }}
-              className="w-full sm:w-auto"
-            >
-              Create Another
-            </Button>
+          {showFaceCaptureOption && onCaptureFace ? (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={onClose}
+                className="w-full sm:w-auto"
+              >
+                Skip Face Capture
+              </Button>
+              <Button 
+                onClick={() => {
+                  onClose();
+                  onCaptureFace();
+                }} 
+                className="w-full sm:w-auto"
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                Capture Face Data
+              </Button>
+            </>
+          ) : (
+            <>
+              {onCreateAnother && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    onClose();
+                    onCreateAnother();
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Create Another
+                </Button>
+              )}
+              <Button onClick={onClose} className="w-full sm:w-auto">
+                Close
+              </Button>
+            </>
           )}
-          <Button onClick={onClose} className="w-full sm:w-auto">
-            Close
-          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

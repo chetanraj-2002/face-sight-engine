@@ -6,11 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { UserPlus, Upload } from 'lucide-react';
+import { UserPlus, Upload, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRolesList } from '@/components/roles/UserRolesList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CredentialsDialog } from '@/components/user';
+import LiveCameraCapture from '@/components/dataset/LiveCameraCapture';
 
 export default function UserManagement() {
   const { profile } = useAuth();
@@ -21,6 +22,12 @@ export default function UserManagement() {
     password: string;
     emailSent: boolean;
   } | null>(null);
+  const [pendingFaceCapture, setPendingFaceCapture] = useState<{
+    datasetUserId: string;
+    usn: string;
+    name: string;
+  } | null>(null);
+  const [isCapturingFace, setIsCapturingFace] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -28,6 +35,7 @@ export default function UserManagement() {
     class: '',
     role: 'student' as 'faculty' | 'student',
   });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -58,15 +66,24 @@ export default function UserManagement() {
         return;
       }
 
-      // Show credentials dialog
+      // Store credentials and dataset user info for face capture
       setCreatedCredentials({
         email: data.email,
         password: data.password,
         emailSent: data.emailSent || false,
       });
+      
+      // Store pending face capture info if dataset user was created
+      if (data.datasetUserId && data.usn) {
+        setPendingFaceCapture({
+          datasetUserId: data.datasetUserId,
+          usn: data.usn,
+          name: formData.name,
+        });
+      }
+      
       setShowCredentialsDialog(true);
       
-      setFormData({ email: '', name: '', usn: '', class: '', role: 'student' });
     } catch (error: any) {
       console.error('Error creating user:', error);
       const errorMessage = error?.message || 'An unexpected error occurred';
@@ -80,12 +97,38 @@ export default function UserManagement() {
     }
   };
 
+  const handleStartFaceCapture = () => {
+    if (pendingFaceCapture) {
+      setIsCapturingFace(true);
+    }
+  };
+
+  const handleFaceCaptureComplete = () => {
+    setIsCapturingFace(false);
+    setPendingFaceCapture(null);
+    setFormData({ email: '', name: '', usn: '', class: '', role: 'student' });
+    toast.success('User setup complete with face data!');
+  };
+
+  const handleCancelFaceCapture = () => {
+    setIsCapturingFace(false);
+    setPendingFaceCapture(null);
+    setFormData({ email: '', name: '', usn: '', class: '', role: 'student' });
+  };
+
+  const handleCloseCredentialsDialog = () => {
+    setShowCredentialsDialog(false);
+    // Reset form if not proceeding to face capture
+    if (!pendingFaceCapture) {
+      setFormData({ email: '', name: '', usn: '', class: '', role: 'student' });
+    }
+  };
+
   const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     toast.info('Excel upload feature coming soon!');
-    // TODO: Implement Excel parsing and bulk user creation
   };
 
   if (!profile || profile.role !== 'department_admin') {
@@ -96,6 +139,35 @@ export default function UserManagement() {
             <p className="text-center text-muted-foreground">
               Access denied. Only department admins can manage users.
             </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Face capture mode
+  if (isCapturingFace && pendingFaceCapture) {
+    return (
+      <div className="space-y-6 p-10">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={handleCancelFaceCapture}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Capture Face Data</h1>
+            <p className="text-muted-foreground mt-1">
+              Capturing for: <span className="font-medium">{pendingFaceCapture.name}</span> ({pendingFaceCapture.usn})
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <LiveCameraCapture
+              userId={pendingFaceCapture.datasetUserId}
+              usn={pendingFaceCapture.usn}
+              onComplete={handleFaceCaptureComplete}
+            />
           </CardContent>
         </Card>
       </div>
@@ -119,7 +191,7 @@ export default function UserManagement() {
             Add User
           </CardTitle>
           <CardDescription>
-            Credentials will be sent to the user's email
+            Create user with credentials, then capture face data
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -165,12 +237,12 @@ export default function UserManagement() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="usn">USN {formData.role === 'student' && '*'}</Label>
+                <Label htmlFor="usn">USN *</Label>
                 <Input
                   id="usn"
                   value={formData.usn}
                   onChange={(e) => setFormData({ ...formData, usn: e.target.value })}
-                  required={formData.role === 'student'}
+                  required
                 />
               </div>
 
@@ -253,9 +325,11 @@ export default function UserManagement() {
 
       <CredentialsDialog
         open={showCredentialsDialog}
-        onClose={() => setShowCredentialsDialog(false)}
+        onClose={handleCloseCredentialsDialog}
         credentials={createdCredentials}
-        userType={createdCredentials ? (formData.role === 'faculty' ? 'Faculty' : 'Student') : 'User'}
+        userType={formData.role === 'faculty' ? 'Faculty' : 'Student'}
+        showFaceCaptureOption={!!pendingFaceCapture}
+        onCaptureFace={handleStartFaceCapture}
       />
     </div>
   );

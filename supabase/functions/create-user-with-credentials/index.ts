@@ -79,6 +79,33 @@ const handler = async (req: Request): Promise<Response> => {
 
     const userId = authData.user.id;
 
+    // Create entry in users table for face recognition dataset (for students and faculty)
+    let datasetUserId: string | null = null;
+    if ((role === 'student' || role === 'faculty') && usn) {
+      try {
+        const { data: userRecord, error: userError } = await supabaseAdmin
+          .from('users')
+          .insert({
+            usn,
+            name,
+            class: classValue,
+            profile_id: userId,
+            image_count: 0,
+          })
+          .select('id')
+          .single();
+
+        if (userError) {
+          console.error("Failed to create user record for dataset:", userError);
+        } else {
+          datasetUserId = userRecord.id;
+          console.log("User record created for dataset:", datasetUserId);
+        }
+      } catch (userRecordError) {
+        console.error("Failed to create user record (non-critical):", userRecordError);
+      }
+    }
+
     // Log role assignment to audit trail
     try {
       const authHeader = req.headers.get('Authorization');
@@ -214,6 +241,8 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         success: true, 
         userId: authData.user.id,
+        datasetUserId: datasetUserId,
+        usn: usn,
         email: authData.user.email,
         password: password,
         emailSent: emailSent
