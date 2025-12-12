@@ -76,7 +76,15 @@ export default function Layout() {
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9"
-                onClick={() => navigate(-1)}
+                onClick={() => {
+                  // Check if there's history to go back to
+                  if (window.history.length > 1) {
+                    navigate(-1);
+                  } else {
+                    // Fallback to dashboard if no history
+                    navigate('/dashboard');
+                  }
+                }}
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
