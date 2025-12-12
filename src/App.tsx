@@ -19,6 +19,7 @@ import BatchOperations from "./pages/BatchOperations";
 import AuditLogs from "./pages/AuditLogs";
 import MobileAttendance from "./pages/MobileAttendance";
 import Settings from "./pages/Settings";
+import Training from "./pages/Training";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="/batch-operations" element={<BatchOperations />} />
               <Route path="/audit-logs" element={<AuditLogs />} />
               <Route path="/mobile-attendance" element={<MobileAttendance />} />
+              <Route path="/training" element={<Training />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
