@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, GraduationCap, Image } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Users, GraduationCap, Image, Search, Filter } from 'lucide-react';
 
 interface UserDetail {
   id: string;
@@ -24,6 +26,9 @@ export function UserDetailsList() {
   const { profile } = useAuth();
   const [users, setUsers] = useState<UserDetail[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSection, setSelectedSection] = useState<string>('all');
+  const [imageFilter, setImageFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchUsers();
@@ -106,8 +111,49 @@ export function UserDetailsList() {
   const students = users.filter(u => u.role === 'student');
   const faculty = users.filter(u => u.role === 'faculty');
 
-  // Group students by class/section
-  const studentsBySection = students.reduce((acc, student) => {
+  // Get all sections for filter dropdown
+  const allSections = useMemo(() => {
+    const sections = [...new Set(students.map(s => s.class || 'Unassigned'))];
+    return sections.sort();
+  }, [students]);
+
+  // Filter students based on search, section, and image filters
+  const filteredStudents = useMemo(() => {
+    return students.filter(student => {
+      const matchesSearch = searchQuery === '' || 
+        student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (student.usn && student.usn.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesSection = selectedSection === 'all' || 
+        (student.class || 'Unassigned') === selectedSection;
+      
+      const matchesImage = imageFilter === 'all' || 
+        (imageFilter === 'with' && student.imageCount > 0) ||
+        (imageFilter === 'without' && student.imageCount === 0);
+      
+      return matchesSearch && matchesSection && matchesImage;
+    });
+  }, [students, searchQuery, selectedSection, imageFilter]);
+
+  // Filter faculty based on search and image filters
+  const filteredFaculty = useMemo(() => {
+    return faculty.filter(member => {
+      const matchesSearch = searchQuery === '' || 
+        member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (member.usn && member.usn.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesImage = imageFilter === 'all' || 
+        (imageFilter === 'with' && member.imageCount > 0) ||
+        (imageFilter === 'without' && member.imageCount === 0);
+      
+      return matchesSearch && matchesImage;
+    });
+  }, [faculty, searchQuery, imageFilter]);
+
+  // Group filtered students by class/section
+  const studentsBySection = filteredStudents.reduce((acc, student) => {
     const section = student.class || 'Unassigned';
     if (!acc[section]) acc[section] = [];
     acc[section].push(student);
@@ -127,15 +173,53 @@ export function UserDetailsList() {
 
   return (
     <div className="space-y-6">
+      {/* Search and Filter Controls */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, email, or USN..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Select value={selectedSection} onValueChange={setSelectedSection}>
+            <SelectTrigger className="w-[160px]">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Section" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sections</SelectItem>
+              {allSections.map(section => (
+                <SelectItem key={section} value={section}>{section}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={imageFilter} onValueChange={setImageFilter}>
+            <SelectTrigger className="w-[160px]">
+              <Image className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Images" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Users</SelectItem>
+              <SelectItem value="with">With Images</SelectItem>
+              <SelectItem value="without">Without Images</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <Tabs defaultValue="students">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="students" className="flex items-center gap-2">
             <GraduationCap className="h-4 w-4" />
-            Students ({students.length})
+            Students ({filteredStudents.length}/{students.length})
           </TabsTrigger>
           <TabsTrigger value="faculty" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Faculty ({faculty.length})
+            Faculty ({filteredFaculty.length}/{faculty.length})
           </TabsTrigger>
         </TabsList>
 
