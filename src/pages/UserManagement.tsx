@@ -10,7 +10,7 @@ import { UserPlus, Upload, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRolesList } from '@/components/roles/UserRolesList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CredentialsDialog } from '@/components/user';
+import { CredentialsDialog, UserDetailsList } from '@/components/user';
 import LiveCameraCapture from '@/components/dataset/LiveCameraCapture';
 
 export default function UserManagement() {
@@ -310,12 +310,25 @@ export default function UserManagement() {
         </CardContent>
       </Card>
 
-      {/* Users by Role */}
+      {/* User Details by Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Assigned Users</CardTitle>
+          <CardTitle>User Directory</CardTitle>
           <CardDescription>
-            View and manage users by role
+            View students section-wise and faculty members
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <UserDetailsList />
+        </CardContent>
+      </Card>
+
+      {/* Quick User Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>
+            Manage users by role - capture face data for users without images
           </CardDescription>
         </CardHeader>
         <CardContent>
