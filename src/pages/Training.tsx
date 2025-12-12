@@ -14,7 +14,7 @@ import {
   TrainingMonitor,
   ModelVersioning,
   TrainingHistoryChart,
-  SyncProgressIndicator,
+  TrainingProgressIndicator,
 } from '@/components/training';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -268,8 +268,12 @@ export default function Training() {
           {/* Action Buttons - Hidden for super_admin */}
           {!isSuperAdmin && (
             <>
-              {/* Sync Progress Indicator */}
-              <SyncProgressIndicator isActive={isSyncing} />
+              {/* Progress Indicators */}
+              <div className="space-y-4">
+                <TrainingProgressIndicator jobType="dataset_sync" isActive={isSyncing} />
+                <TrainingProgressIndicator jobType="embedding_extraction" isActive={isExtracting} />
+                <TrainingProgressIndicator jobType="model_training" isActive={isTraining} />
+              </div>
 
               <Card>
                 <CardHeader>
