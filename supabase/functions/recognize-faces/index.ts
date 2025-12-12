@@ -34,11 +34,33 @@ serve(async (req) => {
       throw new Error('No image file provided');
     }
 
+    // Security: Validate file size (max 10MB)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (imageFile.size > MAX_FILE_SIZE) {
+      throw new Error('Image file too large. Maximum size is 10MB.');
+    }
+
+    // Convert image to base64 and validate format
+    const arrayBuffer = await imageFile.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Security: Validate file type by checking magic bytes
+    const isValidImage = (
+      // JPEG: FF D8 FF
+      (uint8Array[0] === 0xFF && uint8Array[1] === 0xD8 && uint8Array[2] === 0xFF) ||
+      // PNG: 89 50 4E 47
+      (uint8Array[0] === 0x89 && uint8Array[1] === 0x50 && uint8Array[2] === 0x4E && uint8Array[3] === 0x47) ||
+      // WebP: 52 49 46 46 ... 57 45 42 50
+      (uint8Array[0] === 0x52 && uint8Array[1] === 0x49 && uint8Array[2] === 0x46 && uint8Array[3] === 0x46)
+    );
+
+    if (!isValidImage) {
+      throw new Error('Invalid image format. Only JPEG, PNG, and WebP are allowed.');
+    }
+
     console.log('Processing recognition request to:', normalizedUrl);
 
-    // Convert image to base64
-    const arrayBuffer = await imageFile.arrayBuffer();
-    const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const base64Image = btoa(String.fromCharCode(...uint8Array));
 
     // Send to Python API with timeout
     const controller = new AbortController();
@@ -94,8 +116,18 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in recognize-faces:', error);
+    // Security: Sanitize error message - don't expose internal details
+    const safeErrorMessages = [
+      'No image file provided',
+      'Image file too large. Maximum size is 10MB.',
+      'Invalid image format. Only JPEG, PNG, and WebP are allowed.',
+    ];
+    const errorMessage = safeErrorMessages.includes(error.message) 
+      ? error.message 
+      : 'An error occurred during face recognition.';
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
