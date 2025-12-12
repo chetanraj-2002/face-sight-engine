@@ -59,20 +59,25 @@ export function UserDetailsList() {
 
       if (profilesError) throw profilesError;
 
-      // Fetch image counts from users table (dataset users)
-      const { data: datasetUsers, error: datasetError } = await supabase
-        .from('users')
-        .select('profile_id, image_count');
+      // Get USNs for fetching image counts
+      const usns = profilesData?.map(p => p.usn).filter(Boolean) as string[];
 
-      if (datasetError) throw datasetError;
+      // Fetch image counts from users table by USN
+      let imageCountMap = new Map<string, number>();
+      if (usns && usns.length > 0) {
+        const { data: datasetUsers, error: datasetError } = await supabase
+          .from('users')
+          .select('usn, image_count')
+          .in('usn', usns);
 
-      // Create a map for image counts
-      const imageCountMap = new Map<string, number>();
-      datasetUsers?.forEach(du => {
-        if (du.profile_id) {
-          imageCountMap.set(du.profile_id, du.image_count || 0);
+        if (!datasetError && datasetUsers) {
+          datasetUsers.forEach(du => {
+            if (du.usn) {
+              imageCountMap.set(du.usn, du.image_count || 0);
+            }
+          });
         }
-      });
+      }
 
       // Combine the data
       const combinedUsers: UserDetail[] = rolesData.map(role => {
@@ -85,7 +90,7 @@ export function UserDetailsList() {
           usn: profileData?.usn || null,
           class: profileData?.class || null,
           role: role.role,
-          imageCount: imageCountMap.get(role.user_id) || 0,
+          imageCount: profileData?.usn ? (imageCountMap.get(profileData.usn) || 0) : 0,
           createdAt: profileData?.created_at || '',
         };
       });
