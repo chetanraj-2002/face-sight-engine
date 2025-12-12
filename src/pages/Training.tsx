@@ -14,8 +14,12 @@ import {
   ModelVersioning,
   TrainingHistoryChart,
 } from '@/components/training';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Training() {
+  const { profile } = useAuth();
+  const isSuperAdmin = profile?.role === 'super_admin';
+
   const {
     trainingJobs,
     latestJob,
@@ -78,14 +82,16 @@ export default function Training() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold">Model Training</h1>
-        <p className="text-muted-foreground">Train and manage your face recognition models</p>
+        <h1 className="text-3xl font-bold">{isSuperAdmin ? 'Model Health' : 'Model Training'}</h1>
+        <p className="text-muted-foreground">
+          {isSuperAdmin ? 'Monitor model performance and training status' : 'Train and manage your face recognition models'}
+        </p>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className={`grid w-full ${isSuperAdmin ? 'grid-cols-4' : 'grid-cols-5'}`}>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="quality">Quality Checks</TabsTrigger>
+          {!isSuperAdmin && <TabsTrigger value="quality">Quality Checks</TabsTrigger>}
           <TabsTrigger value="versions">Versions</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="batches">Batch Processing</TabsTrigger>
@@ -128,41 +134,45 @@ export default function Training() {
           {/* Real-time Training Monitor */}
           <TrainingMonitor />
 
-          {/* Action Buttons */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Training Actions</CardTitle>
-              <CardDescription>Manage dataset and train your model</CardDescription>
-            </CardHeader>
-            <CardContent className="flex gap-4">
-              <Button
-                onClick={() => syncDataset()}
-                disabled={isSyncing}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                {isSyncing ? 'Syncing...' : 'Sync Dataset'}
-              </Button>
-              <Button
-                onClick={() => extractEmbeddings()}
-                disabled={isExtracting || isSyncing}
-              >
-                <Database className="mr-2 h-4 w-4" />
-                {isExtracting ? 'Extracting...' : 'Extract Embeddings'}
-              </Button>
-              <Button
-                onClick={() => trainModel()}
-                disabled={isTraining || isExtracting || isSyncing}
-              >
-                <Zap className="mr-2 h-4 w-4" />
-                {isTraining ? 'Training...' : 'Train Model'}
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Action Buttons - Hidden for super_admin */}
+          {!isSuperAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Training Actions</CardTitle>
+                <CardDescription>Manage dataset and train your model</CardDescription>
+              </CardHeader>
+              <CardContent className="flex gap-4">
+                <Button
+                  onClick={() => syncDataset()}
+                  disabled={isSyncing}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {isSyncing ? 'Syncing...' : 'Sync Dataset'}
+                </Button>
+                <Button
+                  onClick={() => extractEmbeddings()}
+                  disabled={isExtracting || isSyncing}
+                >
+                  <Database className="mr-2 h-4 w-4" />
+                  {isExtracting ? 'Extracting...' : 'Extract Embeddings'}
+                </Button>
+                <Button
+                  onClick={() => trainModel()}
+                  disabled={isTraining || isExtracting || isSyncing}
+                >
+                  <Zap className="mr-2 h-4 w-4" />
+                  {isTraining ? 'Training...' : 'Train Model'}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
-        <TabsContent value="quality">
-          <DatasetQualityCheck />
-        </TabsContent>
+        {!isSuperAdmin && (
+          <TabsContent value="quality">
+            <DatasetQualityCheck />
+          </TabsContent>
+        )}
 
         <TabsContent value="versions">
           <ModelVersioning />
