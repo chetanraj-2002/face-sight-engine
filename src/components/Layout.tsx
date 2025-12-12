@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Database, GraduationCap, Brain, UserCheck, LayoutDashboard, LogOut, Building2, Building, Users, Activity, FolderSync, FileSearch, Smartphone, Settings, Menu, X, ArrowLeft } from 'lucide-react';
+import { GraduationCap, UserCheck, LayoutDashboard, LogOut, Building2, Building, Users, Activity, FolderSync, FileSearch, Smartphone, Settings, Menu, X, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
@@ -14,7 +14,6 @@ const getNavigationForRole = (role: string | undefined) => {
     super_admin: [
       { name: 'Institutions', href: '/institutions', icon: Building2 },
       { name: 'Reports', href: '/attendance-reports', icon: Activity },
-      { name: 'Model Health', href: '/training', icon: Activity },
       { name: 'Audit Logs', href: '/audit-logs', icon: FileSearch },
     ],
     institute_admin: [
@@ -23,16 +22,12 @@ const getNavigationForRole = (role: string | undefined) => {
     ],
     department_admin: [
       { name: 'User Management', href: '/users', icon: Users },
-      { name: 'Dataset', href: '/dataset', icon: Database },
-      { name: 'Training', href: '/training', icon: Brain },
-      { name: 'Recognition', href: '/recognition', icon: GraduationCap },
       { name: 'Attendance', href: '/attendance', icon: UserCheck },
       { name: 'Reports', href: '/attendance-reports', icon: Activity },
       { name: 'Batch Operations', href: '/batch-operations', icon: FolderSync },
       { name: 'Audit Logs', href: '/audit-logs', icon: FileSearch },
     ],
     faculty: [
-      { name: 'Recognition', href: '/recognition', icon: GraduationCap },
       { name: 'Attendance', href: '/attendance', icon: UserCheck },
       { name: 'Reports', href: '/attendance-reports', icon: Activity },
       { name: 'Mobile QR', href: '/mobile-attendance', icon: Smartphone },
