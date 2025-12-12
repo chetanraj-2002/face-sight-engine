@@ -14,6 +14,7 @@ import {
   TrainingMonitor,
   ModelVersioning,
   TrainingHistoryChart,
+  SyncProgressIndicator,
 } from '@/components/training';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -266,35 +267,40 @@ export default function Training() {
 
           {/* Action Buttons - Hidden for super_admin */}
           {!isSuperAdmin && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Training Actions</CardTitle>
-                <CardDescription>Manage dataset and train your model</CardDescription>
-              </CardHeader>
-              <CardContent className="flex gap-4">
-                <Button
-                  onClick={() => syncDataset()}
-                  disabled={isSyncing}
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  {isSyncing ? 'Syncing...' : 'Sync Dataset'}
-                </Button>
-                <Button
-                  onClick={() => extractEmbeddings()}
-                  disabled={isExtracting || isSyncing}
-                >
-                  <Database className="mr-2 h-4 w-4" />
-                  {isExtracting ? 'Extracting...' : 'Extract Embeddings'}
-                </Button>
-                <Button
-                  onClick={() => trainModel()}
-                  disabled={isTraining || isExtracting || isSyncing}
-                >
-                  <Zap className="mr-2 h-4 w-4" />
-                  {isTraining ? 'Training...' : 'Train Model'}
-                </Button>
-              </CardContent>
-            </Card>
+            <>
+              {/* Sync Progress Indicator */}
+              <SyncProgressIndicator isActive={isSyncing} />
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Training Actions</CardTitle>
+                  <CardDescription>Manage dataset and train your model</CardDescription>
+                </CardHeader>
+                <CardContent className="flex gap-4">
+                  <Button
+                    onClick={() => syncDataset()}
+                    disabled={isSyncing}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    {isSyncing ? 'Syncing...' : 'Sync Dataset'}
+                  </Button>
+                  <Button
+                    onClick={() => extractEmbeddings()}
+                    disabled={isExtracting || isSyncing}
+                  >
+                    <Database className="mr-2 h-4 w-4" />
+                    {isExtracting ? 'Extracting...' : 'Extract Embeddings'}
+                  </Button>
+                  <Button
+                    onClick={() => trainModel()}
+                    disabled={isTraining || isExtracting || isSyncing}
+                  >
+                    <Zap className="mr-2 h-4 w-4" />
+                    {isTraining ? 'Training...' : 'Train Model'}
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
           )}
         </TabsContent>
 

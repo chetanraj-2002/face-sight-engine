@@ -11,23 +11,54 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  );
 
+  let jobId: string | null = null;
+
+  try {
     const pythonApiUrl = Deno.env.get('PYTHON_API_URL');
     if (!pythonApiUrl) {
       throw new Error('PYTHON_API_URL not configured');
     }
 
-    // Normalize URL - add http:// if no protocol specified
     const normalizedUrl = pythonApiUrl.startsWith('http://') || pythonApiUrl.startsWith('https://') 
       ? pythonApiUrl 
       : `http://${pythonApiUrl}`;
 
     console.log('Starting dataset sync to:', normalizedUrl);
+
+    // Create a training job to track progress
+    const { data: job, error: jobError } = await supabaseClient
+      .from('training_jobs')
+      .insert({
+        job_type: 'dataset_sync',
+        status: 'in_progress',
+        progress: 0,
+        logs: 'Starting dataset sync...',
+      })
+      .select()
+      .single();
+
+    if (jobError) {
+      console.error('Failed to create tracking job:', jobError);
+    } else {
+      jobId = job.id;
+      console.log('Created tracking job:', jobId);
+    }
+
+    // Helper to update progress
+    const updateProgress = async (progress: number, logs: string) => {
+      if (!jobId) return;
+      await supabaseClient
+        .from('training_jobs')
+        .update({ progress, logs })
+        .eq('id', jobId);
+    };
+
+    await updateProgress(5, 'Fetching users from database...');
 
     // Fetch all users from Supabase
     const { data: users, error: usersError } = await supabaseClient
@@ -39,6 +70,7 @@ serve(async (req) => {
     }
 
     console.log(`Found ${users?.length || 0} users`);
+    await updateProgress(10, `Found ${users?.length || 0} users. Fetching face images...`);
 
     // Fetch all face images
     const { data: faceImages, error: imagesError } = await supabaseClient
@@ -50,6 +82,7 @@ serve(async (req) => {
     }
 
     console.log(`Found ${faceImages?.length || 0} face images`);
+    await updateProgress(15, `Found ${faceImages?.length || 0} face images. Preparing download...`);
 
     // Group images by USN
     const imagesByUsn: Record<string, any[]> = {};
@@ -59,6 +92,9 @@ serve(async (req) => {
       }
       imagesByUsn[img.usn].push(img);
     }
+
+    const totalImages = faceImages?.length || 0;
+    let processedImages = 0;
 
     console.log('Downloading images in parallel batches...');
     const startTime = Date.now();
@@ -104,7 +140,16 @@ serve(async (req) => {
           })
         );
 
-        dataset.push(...results.filter(r => r !== null));
+        const validResults = results.filter(r => r !== null);
+        dataset.push(...validResults);
+        processedImages += batch.length;
+
+        // Update progress (15-70% for downloads)
+        const downloadProgress = 15 + Math.round((processedImages / totalImages) * 55);
+        await updateProgress(
+          Math.min(downloadProgress, 70),
+          `Downloaded ${processedImages}/${totalImages} images...`
+        );
       }
     }
 
@@ -112,16 +157,28 @@ serve(async (req) => {
     const downloadTime = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`Downloaded ${totalImagesSynced} images in ${downloadTime}s`);
 
-    console.log(`Prepared ${totalImagesSynced} images for sync`);
+    await updateProgress(70, `Downloaded ${totalImagesSynced} images in ${downloadTime}s. Syncing to Python API...`);
 
     // Check if there's any data to sync
     if (totalImagesSynced === 0) {
+      await supabaseClient
+        .from('training_jobs')
+        .update({
+          status: 'failed',
+          progress: 100,
+          error_message: 'No images to sync',
+          completed_at: new Date().toISOString(),
+          logs: 'No images to sync. Please add users and upload face images first.',
+        })
+        .eq('id', jobId);
+
       return new Response(
         JSON.stringify({
           success: false,
           error: 'No images to sync. Please add users and upload face images first.',
           users_synced: 0,
           images_synced: 0,
+          job_id: jobId,
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -129,8 +186,10 @@ serve(async (req) => {
 
     // Send to Python API with timeout and better error handling
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout for large datasets
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
     
+    await updateProgress(75, 'Sending dataset to Python API...');
+
     let syncResponse;
     try {
       syncResponse = await fetch(`${normalizedUrl}/api/dataset/sync`, {
@@ -155,11 +214,27 @@ serve(async (req) => {
     const result = await syncResponse.json();
     console.log('Sync completed:', result);
 
+    await updateProgress(95, 'Sync completed. Finalizing...');
+
+    // Update job as completed
+    await supabaseClient
+      .from('training_jobs')
+      .update({
+        status: 'completed',
+        progress: 100,
+        completed_at: new Date().toISOString(),
+        users_processed: users?.length || 0,
+        embeddings_count: totalImagesSynced,
+        logs: `Sync completed successfully. ${users?.length || 0} users, ${totalImagesSynced} images synced in ${downloadTime}s.`,
+      })
+      .eq('id', jobId);
+
     return new Response(
       JSON.stringify({
         success: true,
         users_synced: users?.length || 0,
         images_synced: totalImagesSynced,
+        job_id: jobId,
         result,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -167,8 +242,23 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in sync-dataset:', error);
+
+    // Update job as failed
+    if (jobId) {
+      await supabaseClient
+        .from('training_jobs')
+        .update({
+          status: 'failed',
+          progress: 100,
+          error_message: error.message,
+          completed_at: new Date().toISOString(),
+          logs: `Sync failed: ${error.message}`,
+        })
+        .eq('id', jobId);
+    }
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message, job_id: jobId }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
