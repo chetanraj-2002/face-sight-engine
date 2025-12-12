@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Camera, Square, Check } from 'lucide-react';
+import { Camera, Square, Check, Upload, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
@@ -18,13 +18,15 @@ export default function LiveCameraCapture({ userId, usn, onComplete }: LiveCamer
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStartTime, setUploadStartTime] = useState<number | null>(null);
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<string>('');
   const [stream, setStream] = useState<MediaStream | null>(null);
   const { playSound } = useNotificationSound();
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSoundRef = useRef<number>(0);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const IMAGES_PER_USER = 100;
   const CAPTURE_RATE_MS = 500; // 2 images per second
@@ -127,6 +129,26 @@ export default function LiveCameraCapture({ userId, usn, onComplete }: LiveCamer
   const uploadImages = async (images: string[]) => {
     setIsUploading(true);
     setUploadProgress(0);
+    setUploadStartTime(Date.now());
+    setEstimatedTimeRemaining('Calculating...');
+    
+    // Simulate progress while uploading (since we can't get real-time progress from edge function)
+    const estimatedDuration = images.length * 100; // ~100ms per image with parallel processing
+    const startTime = Date.now();
+    
+    progressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / estimatedDuration) * 95, 95); // Cap at 95% until complete
+      setUploadProgress(progress);
+      
+      const remaining = Math.max(0, estimatedDuration - elapsed);
+      if (remaining > 0) {
+        const seconds = Math.ceil(remaining / 1000);
+        setEstimatedTimeRemaining(seconds > 60 
+          ? `~${Math.ceil(seconds / 60)}m ${seconds % 60}s` 
+          : `~${seconds}s`);
+      }
+    }, 200);
     
     try {
       toast.info(`Uploading ${images.length} images...`);
@@ -141,17 +163,24 @@ export default function LiveCameraCapture({ userId, usn, onComplete }: LiveCamer
 
       if (error) throw error;
 
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+      
       setUploadProgress(100);
+      setEstimatedTimeRemaining('Complete!');
+      
+      const uploadTime = data?.timeSeconds || ((Date.now() - startTime) / 1000).toFixed(1);
       
       if (data?.batchComplete) {
         playSound('success');
         toast.success(data.message, {
-          description: 'Training pipeline started automatically!',
+          description: `Uploaded in ${uploadTime}s. Training pipeline started!`,
           duration: 5000,
         });
       } else {
         playSound('success');
-        toast.success(data?.message || `Uploaded ${images.length} images successfully!`);
+        toast.success(data?.message || `Uploaded ${images.length} images in ${uploadTime}s!`);
       }
 
       stopCamera();
@@ -159,10 +188,14 @@ export default function LiveCameraCapture({ userId, usn, onComplete }: LiveCamer
       
     } catch (error: any) {
       console.error('Upload error:', error);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
       playSound('error');
       toast.error(`Upload failed: ${error.message}`);
     } finally {
       setIsUploading(false);
+      setUploadStartTime(null);
     }
   };
 
@@ -189,11 +222,31 @@ export default function LiveCameraCapture({ userId, usn, onComplete }: LiveCamer
         
         <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-sm rounded-lg p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-white text-sm font-medium">
-              {isCapturing ? 'Capturing' : isUploading ? 'Uploading' : 'Ready'}
+            <span className="text-white text-sm font-medium flex items-center gap-2">
+              {isCapturing ? (
+                <>
+                  <Camera className="h-4 w-4" />
+                  Capturing
+                </>
+              ) : isUploading ? (
+                <>
+                  <Upload className="h-4 w-4 animate-pulse" />
+                  Uploading
+                </>
+              ) : 'Ready'}
             </span>
             <span className="text-white text-sm font-medium">
-              {captureCount}/{IMAGES_PER_USER}
+              {isUploading ? (
+                <span className="flex items-center gap-2">
+                  <span>{Math.round(uploadProgress)}%</span>
+                  <span className="text-white/70 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {estimatedTimeRemaining}
+                  </span>
+                </span>
+              ) : (
+                `${captureCount}/${IMAGES_PER_USER}`
+              )}
             </span>
           </div>
           <Progress value={isUploading ? uploadProgress : progress} className="h-2" />
