@@ -34,6 +34,35 @@ serve(async (req) => {
       throw new Error('Missing required fields: image and session_id');
     }
 
+    // Security: Validate file size (max 10MB)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (imageFile.size > MAX_FILE_SIZE) {
+      throw new Error('Image file too large. Maximum size is 10MB.');
+    }
+
+    // Security: Validate file type by checking magic bytes
+    const arrayBufferForValidation = await imageFile.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBufferForValidation);
+    
+    const isValidImage = (
+      // JPEG: FF D8 FF
+      (uint8Array[0] === 0xFF && uint8Array[1] === 0xD8 && uint8Array[2] === 0xFF) ||
+      // PNG: 89 50 4E 47
+      (uint8Array[0] === 0x89 && uint8Array[1] === 0x50 && uint8Array[2] === 0x4E && uint8Array[3] === 0x47) ||
+      // WebP: 52 49 46 46 ... 57 45 42 50
+      (uint8Array[0] === 0x52 && uint8Array[1] === 0x49 && uint8Array[2] === 0x46 && uint8Array[3] === 0x46)
+    );
+
+    if (!isValidImage) {
+      throw new Error('Invalid image format. Only JPEG, PNG, and WebP are allowed.');
+    }
+
+    // Security: Validate session_id format (UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(sessionId)) {
+      throw new Error('Invalid session ID format.');
+    }
+
     console.log('Processing attendance for session:', sessionId);
 
     // Verify session exists
@@ -48,12 +77,11 @@ serve(async (req) => {
     }
 
     // Create FormData to send to Python API (it expects multipart/form-data)
-    // Convert File to Blob for proper FormData handling in Deno
-    const arrayBuffer = await imageFile.arrayBuffer();
-    const blob = new Blob([arrayBuffer], { type: imageFile.type || 'image/jpeg' });
+    // Reuse the already-read array buffer for creating the blob
+    const blob = new Blob([arrayBufferForValidation], { type: imageFile.type || 'image/jpeg' });
     
     const pythonFormData = new FormData();
-    pythonFormData.append('image', blob, imageFile.name || 'capture.jpg');
+    pythonFormData.append('image', blob, 'capture.jpg');
     pythonFormData.append('session_id', sessionId);
     pythonFormData.append('confidence_threshold', '0.6');
 
@@ -124,8 +152,20 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in mark-attendance:', error);
+    // Security: Sanitize error message - don't expose internal details
+    const safeErrorMessages = [
+      'Missing required fields: image and session_id',
+      'Image file too large. Maximum size is 10MB.',
+      'Invalid image format. Only JPEG, PNG, and WebP are allowed.',
+      'Invalid session ID format.',
+      'Invalid session ID',
+    ];
+    const errorMessage = safeErrorMessages.includes(error.message) 
+      ? error.message 
+      : 'An error occurred while processing attendance.';
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

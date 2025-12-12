@@ -184,6 +184,15 @@ serve(async (req) => {
       );
     }
 
+    // Security: Validate payload size (max 100MB for entire dataset)
+    const MAX_PAYLOAD_SIZE = 100 * 1024 * 1024; // 100MB
+    const payloadJson = JSON.stringify({ dataset });
+    const payloadSize = new TextEncoder().encode(payloadJson).length;
+    
+    if (payloadSize > MAX_PAYLOAD_SIZE) {
+      throw new Error('Dataset too large. Please reduce the number of images or sync in smaller batches.');
+    }
+
     // Send to Python API with timeout and better error handling
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
@@ -197,7 +206,7 @@ serve(async (req) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ dataset }),
+        body: payloadJson,
         signal: controller.signal,
       });
     } catch (fetchError) {
@@ -243,6 +252,17 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in sync-dataset:', error);
 
+    // Security: Sanitize error message
+    const safeErrorMessages = [
+      'PYTHON_API_URL not configured',
+      'No images to sync. Please add users and upload face images first.',
+      'Dataset too large. Please reduce the number of images or sync in smaller batches.',
+    ];
+    const isSafeError = safeErrorMessages.includes(error.message) || 
+      error.message.startsWith('Failed to fetch users:') ||
+      error.message.startsWith('Failed to fetch face images:');
+    const safeErrorMessage = isSafeError ? error.message : 'An error occurred during dataset sync.';
+
     // Update job as failed
     if (jobId) {
       await supabaseClient
@@ -250,15 +270,15 @@ serve(async (req) => {
         .update({
           status: 'failed',
           progress: 100,
-          error_message: error.message,
+          error_message: safeErrorMessage,
           completed_at: new Date().toISOString(),
-          logs: `Sync failed: ${error.message}`,
+          logs: `Sync failed: ${safeErrorMessage}`,
         })
         .eq('id', jobId);
     }
 
     return new Response(
-      JSON.stringify({ error: error.message, job_id: jobId }),
+      JSON.stringify({ error: safeErrorMessage, job_id: jobId }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
