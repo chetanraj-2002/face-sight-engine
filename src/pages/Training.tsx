@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTraining } from '@/hooks/useTraining';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Database, Zap, RefreshCw, TrendingUp } from 'lucide-react';
+import { Database, Zap, RefreshCw, TrendingUp, Activity, CheckCircle, XCircle, Layers } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   DatasetQualityCheck,
@@ -48,6 +48,48 @@ export default function Training() {
         totalUsers,
         totalImages,
         avgImagesPerUser: totalUsers > 0 ? (totalImages / totalUsers).toFixed(1) : '0',
+      };
+    },
+  });
+
+  // Fetch system health metrics for super_admin
+  const { data: systemHealth } = useQuery({
+    queryKey: ['system-health'],
+    enabled: isSuperAdmin,
+    queryFn: async () => {
+      const [modelsResult, jobsResult] = await Promise.all([
+        supabase.from('model_versions').select('*'),
+        supabase.from('training_jobs').select('*').order('started_at', { ascending: false }).limit(20),
+      ]);
+
+      const models = modelsResult.data || [];
+      const jobs = jobsResult.data || [];
+
+      const totalModels = models.length;
+      const activeModels = models.filter(m => m.is_active).length;
+      const productionModel = models.find(m => m.is_production);
+      
+      const accuracies = models.filter(m => m.accuracy).map(m => m.accuracy!);
+      const avgAccuracy = accuracies.length > 0 
+        ? (accuracies.reduce((a, b) => a + b, 0) / accuracies.length * 100).toFixed(1) 
+        : null;
+
+      const recentJobs = jobs.slice(0, 10);
+      const successfulJobs = recentJobs.filter(j => j.status === 'completed').length;
+      const successRate = recentJobs.length > 0 
+        ? ((successfulJobs / recentJobs.length) * 100).toFixed(0) 
+        : null;
+
+      const failedJobs = recentJobs.filter(j => j.status === 'failed').length;
+
+      return {
+        totalModels,
+        activeModels,
+        productionVersion: productionModel?.version || 'None',
+        avgAccuracy,
+        successRate,
+        failedJobs,
+        totalJobs: jobs.length,
       };
     },
   });
@@ -98,6 +140,67 @@ export default function Training() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          {/* System Health Summary - Super Admin Only */}
+          {isSuperAdmin && systemHealth && (
+            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-primary" />
+                  System Health Overview
+                </CardTitle>
+                <CardDescription>Overall model performance and training metrics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Layers className="h-4 w-4" />
+                      Total Models
+                    </div>
+                    <p className="text-2xl font-bold">{systemHealth.totalModels}</p>
+                    <p className="text-xs text-muted-foreground">{systemHealth.activeModels} active</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <TrendingUp className="h-4 w-4" />
+                      Avg Accuracy
+                    </div>
+                    <p className="text-2xl font-bold">
+                      {systemHealth.avgAccuracy ? `${systemHealth.avgAccuracy}%` : 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">across all models</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-4 w-4" />
+                      Success Rate
+                    </div>
+                    <p className="text-2xl font-bold text-green-600">
+                      {systemHealth.successRate ? `${systemHealth.successRate}%` : 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">last 10 jobs</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <XCircle className="h-4 w-4" />
+                      Failed Jobs
+                    </div>
+                    <p className={`text-2xl font-bold ${systemHealth.failedJobs > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                      {systemHealth.failedJobs}
+                    </p>
+                    <p className="text-xs text-muted-foreground">in recent history</p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Production Model: </span>
+                    <span className="font-medium">{systemHealth.productionVersion}</span>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Dataset Statistics */}
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
