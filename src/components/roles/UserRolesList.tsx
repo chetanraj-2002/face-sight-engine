@@ -116,35 +116,23 @@ export function UserRolesList({ filterRole, onRoleRemoved, onCaptureFace }: User
     }
   };
 
-  const handleRemoveRole = async (roleId: string, userId: string, role: string) => {
+  const handleDeleteUser = async (roleId: string, userId: string, userName: string) => {
     setRemoving(roleId);
     try {
-      // First, delete the role
-      const { error: deleteError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('id', roleId);
+      // Call edge function to delete user completely
+      const { data, error } = await supabase.functions.invoke('delete-user-complete', {
+        body: { userId }
+      });
 
-      if (deleteError) throw deleteError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Log the audit trail
-      if (profile?.id) {
-        await supabase.from('role_change_audit').insert({
-          user_id: userId,
-          performed_by: profile.id,
-          action: 'removed',
-          role: role as any,
-          institute: profile.institute,
-          department: profile.department,
-        });
-      }
-
-      toast.success('Role removed successfully');
+      toast.success(`${userName} and all associated data deleted successfully`);
       fetchRoles();
       onRoleRemoved?.();
     } catch (error: any) {
-      console.error('Error removing role:', error);
-      toast.error(error.message || 'Failed to remove role');
+      console.error('Error deleting user:', error);
+      toast.error(error.message || 'Failed to delete user');
     } finally {
       setRemoving(null);
     }
@@ -269,19 +257,20 @@ export function UserRolesList({ filterRole, onRoleRemoved, onCaptureFace }: User
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Remove Role</AlertDialogTitle>
+                            <AlertDialogTitle>Delete User</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to remove the {userRole.role.replace('_', ' ')} role from{' '}
-                              {userRole.profile?.name}? This action cannot be undone.
+                              Are you sure you want to delete <strong>{userRole.profile?.name}</strong>? 
+                              This will permanently remove the user, their login credentials, face data, 
+                              and all associated records. This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => handleRemoveRole(userRole.id, userRole.user_id, userRole.role)}
+                              onClick={() => handleDeleteUser(userRole.id, userRole.user_id, userRole.profile?.name || 'User')}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              Remove Role
+                              Delete User
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
