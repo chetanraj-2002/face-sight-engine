@@ -57,9 +57,10 @@ serve(async (req) => {
       throw new Error('Invalid image format. Only JPEG, PNG, and WebP are allowed.');
     }
 
-    // Security: Validate session_id format (UUID)
+    // Security: Validate session_id format (accepts both UUID and timestamp-based session IDs)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(sessionId)) {
+    const sessionIdRegex = /^session_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/;
+    if (!uuidRegex.test(sessionId) && !sessionIdRegex.test(sessionId)) {
       throw new Error('Invalid session ID format.');
     }
 
