@@ -26,3 +26,6 @@ verify_jwt = true
 
 [functions.check-low-attendance]
 verify_jwt = true
+
+[functions.delete-user-complete]
+verify_jwt = true
