@@ -372,7 +372,7 @@ export default function Training() {
           <Card>
             <CardHeader>
               <CardTitle>Batch Processing History</CardTitle>
-              <CardDescription>View automated batch training sessions (10 users per batch)</CardDescription>
+              <CardDescription>View batch tracking sessions. Use "Sync Dataset" to manually trigger training.</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>

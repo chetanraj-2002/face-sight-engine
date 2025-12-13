@@ -119,14 +119,13 @@ serve(async (req) => {
       .update({ image_count: totalSuccess })
       .eq('id', userId);
 
-    // Get current batch settings
+    // Update batch tracking for informational purposes only (no auto-trigger)
     const { data: settings } = await supabase
       .from('system_settings')
       .select('key, value')
-      .in('key', ['batch_size', 'current_batch_number', 'users_in_current_batch']);
+      .in('key', ['current_batch_number', 'users_in_current_batch']);
 
     const settingsMap = settings?.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {}) || {};
-    const batchSize = parseInt(settingsMap['batch_size'] || '10');
     const currentBatch = parseInt(settingsMap['current_batch_number'] || '1');
     let usersInBatch = parseInt(settingsMap['users_in_current_batch'] || '0') + 1;
 
@@ -135,7 +134,7 @@ serve(async (req) => {
       .from('system_settings')
       .upsert({ key: 'users_in_current_batch', value: usersInBatch.toString() }, { onConflict: 'key' });
 
-    // Upsert batch tracking
+    // Upsert batch tracking (informational only)
     await supabase
       .from('user_batch_tracking')
       .upsert({
@@ -144,15 +143,6 @@ serve(async (req) => {
         batch_status: 'collecting',
       }, { onConflict: 'batch_number' });
 
-    const batchComplete = usersInBatch >= batchSize;
-    
-    if (batchComplete) {
-      console.log(`Batch ${currentBatch} complete! Triggering pipeline...`);
-      supabase.functions.invoke('process-pipeline', {
-        body: { batchNumber: currentBatch }
-      });
-    }
-
     return new Response(
       JSON.stringify({
         success: true,
@@ -160,11 +150,7 @@ serve(async (req) => {
         errors: totalErrors,
         timeSeconds: parseFloat(elapsed),
         usersInBatch,
-        batchSize,
-        batchComplete,
-        message: batchComplete 
-          ? `Batch complete! Processing started.`
-          : `Uploaded ${totalSuccess} images in ${elapsed}s (${usersInBatch}/${batchSize} users)`
+        message: `Uploaded ${totalSuccess} images in ${elapsed}s. Use Training page to sync dataset.`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
