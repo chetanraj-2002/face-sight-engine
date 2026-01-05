@@ -40,12 +40,12 @@ export const useTraining = () => {
   // Get latest training status
   const latestJob = trainingJobs?.[0];
 
-  // Sync dataset mutation
+  // Sync dataset mutation - now uses faster URL-based sync
   const syncDataset = useMutation({
     mutationFn: async () => {
       if (isDirectApiMode()) {
-        // Direct API call to Python backend - need to fetch and send dataset
-        console.log('[Training] Using direct API for sync-dataset');
+        // Direct API call to Python backend using URL-based sync (faster!)
+        console.log('[Training] Using direct API with URL-based sync (faster)');
         
         // Fetch users and their face images from Supabase
         const { data: users, error: usersError } = await supabase
@@ -60,56 +60,41 @@ export const useTraining = () => {
         
         if (imagesError) throw imagesError;
         
-        // Download images and convert to base64
-        // Flask expects flat array: [{usn, name, class, image, filename}, ...]
-        const dataset: Array<{
+        if (!users?.length || !faceImages?.length) {
+          throw new Error('No users or images found. Please add users and upload face images first.');
+        }
+        
+        // Prepare URL-based dataset (much faster - no base64 conversion!)
+        const images: Array<{
           usn: string;
           name: string;
           class: string | null;
-          image: string;
+          url: string;
           filename: string;
         }> = [];
         
-        for (const user of users || []) {
-          const userImages = (faceImages || []).filter(img => img.usn === user.usn);
+        for (const user of users) {
+          const userImages = faceImages.filter(img => img.usn === user.usn);
           
           for (const img of userImages) {
-            try {
-              // Download image from Supabase storage
-              const { data: imageData, error: downloadError } = await supabase.storage
-                .from('face-images')
-                .download(img.storage_path);
-              
-              if (downloadError || !imageData) {
-                console.warn(`Failed to download image: ${img.storage_path}`);
-                continue;
-              }
-              
-              // Convert to base64
-              const buffer = await imageData.arrayBuffer();
-              const base64 = btoa(
-                new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-              );
-              
-              dataset.push({
-                usn: user.usn,
-                name: user.name,
-                class: user.class,
-                image: base64,
-                filename: img.storage_path.split('/').pop() || 'image.jpg',
-              });
-            } catch (err) {
-              console.warn(`Error processing image: ${img.storage_path}`, err);
-            }
+            // Use the public URL directly - Python will download it
+            images.push({
+              usn: user.usn,
+              name: user.name,
+              class: user.class,
+              url: img.image_url, // Public URL from Supabase Storage
+              filename: img.storage_path.split('/').pop() || 'image.jpg',
+            });
           }
         }
         
-        const uniqueUsers = new Set(dataset.map(d => d.usn)).size;
-        console.log(`[Training] Prepared dataset with ${uniqueUsers} users, ${dataset.length} images`);
+        const uniqueUsers = new Set(images.map(d => d.usn)).size;
+        console.log(`[Training] Sending ${images.length} image URLs for ${uniqueUsers} users to Python API`);
         
+        // Use the faster URL-based sync endpoint
         const response = await apiClient.post<TrainingResponse>(
-          API_CONFIG.ENDPOINTS.SYNC_DATASET,
-          { dataset }
+          API_CONFIG.ENDPOINTS.SYNC_DATASET_URLS,
+          { images }
         );
         return response.data;
       } else {
@@ -209,13 +194,13 @@ export const useTraining = () => {
     setIsRunningPipeline(true);
     
     try {
-      // Step 1: Sync Dataset
+      // Step 1: Sync Dataset using faster URL-based sync
       setPipelineStep('Syncing dataset...');
       toast({ title: 'Pipeline Started', description: 'Step 1/3: Syncing dataset to Python API...' });
       
       let syncResult: TrainingResponse;
       if (isDirectApiMode()) {
-        console.log('[Pipeline] Step 1: Syncing dataset...');
+        console.log('[Pipeline] Step 1: Syncing dataset using URL-based sync (faster)...');
         
         const { data: users, error: usersError } = await supabase
           .from('users')
@@ -233,42 +218,30 @@ export const useTraining = () => {
           throw new Error('No users or images found. Please add users and upload face images first.');
         }
         
-        const dataset: Array<{ usn: string; name: string; class: string | null; image: string; filename: string }> = [];
+        // Use URL-based sync - no base64 conversion needed!
+        const images: Array<{ usn: string; name: string; class: string | null; url: string; filename: string }> = [];
         
         for (const user of users) {
           const userImages = faceImages.filter(img => img.usn === user.usn);
           
           for (const img of userImages) {
-            try {
-              const { data: imageData, error: downloadError } = await supabase.storage
-                .from('face-images')
-                .download(img.storage_path);
-              
-              if (downloadError || !imageData) continue;
-              
-              const buffer = await imageData.arrayBuffer();
-              const base64 = btoa(new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
-              
-              dataset.push({
-                usn: user.usn,
-                name: user.name,
-                class: user.class,
-                image: base64,
-                filename: img.storage_path.split('/').pop() || 'image.jpg',
-              });
-            } catch (err) {
-              console.warn(`Error processing image: ${img.storage_path}`, err);
-            }
+            images.push({
+              usn: user.usn,
+              name: user.name,
+              class: user.class,
+              url: img.image_url, // Public URL - Python downloads directly
+              filename: img.storage_path.split('/').pop() || 'image.jpg',
+            });
           }
         }
         
-        if (dataset.length === 0) {
-          throw new Error('No images could be downloaded. Please check your image uploads.');
+        if (images.length === 0) {
+          throw new Error('No images found. Please check your image uploads.');
         }
         
-        console.log(`[Pipeline] Prepared ${dataset.length} images for ${new Set(dataset.map(d => d.usn)).size} users`);
+        console.log(`[Pipeline] Sending ${images.length} image URLs for ${new Set(images.map(d => d.usn)).size} users`);
         
-        const response = await apiClient.post<TrainingResponse>(API_CONFIG.ENDPOINTS.SYNC_DATASET, { dataset });
+        const response = await apiClient.post<TrainingResponse>(API_CONFIG.ENDPOINTS.SYNC_DATASET_URLS, { images });
         syncResult = response.data;
         
         if (!syncResult.success && syncResult.error) {
