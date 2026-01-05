@@ -7,7 +7,7 @@ import { useTraining } from '@/hooks/useTraining';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
-import { Database, Zap, RefreshCw, TrendingUp, Activity, CheckCircle, XCircle, Layers } from 'lucide-react';
+import { Database, Zap, RefreshCw, TrendingUp, Activity, CheckCircle, XCircle, Layers, Play } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   DatasetQualityCheck,
@@ -33,6 +33,9 @@ export default function Training() {
     isSyncing,
     isExtracting,
     isTraining,
+    runFullPipeline,
+    isRunningPipeline,
+    pipelineStep,
   } = useTraining();
 
   // Fetch dataset stats
@@ -275,32 +278,71 @@ export default function Training() {
                 <TrainingProgressIndicator jobType="model_training" isActive={isTraining} />
               </div>
 
+              {/* Full Pipeline Button */}
+              <Card className="border-primary/50 bg-gradient-to-br from-primary/5 to-transparent">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Play className="h-5 w-5 text-primary" />
+                    One-Click Training
+                  </CardTitle>
+                  <CardDescription>
+                    Run the complete pipeline: Sync → Extract Embeddings → Train Model
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    onClick={runFullPipeline}
+                    disabled={isRunningPipeline || isSyncing || isExtracting || isTraining}
+                  >
+                    {isRunningPipeline ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        {pipelineStep || 'Running...'}
+                      </>
+                    ) : (
+                      <>
+                        <Play className="mr-2 h-4 w-4" />
+                        Run Full Training Pipeline
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    This will sync all {stats?.totalImages || 0} images, extract embeddings, and train the model
+                  </p>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
-                  <CardTitle>Training Actions</CardTitle>
-                  <CardDescription>Manage dataset and train your model</CardDescription>
+                  <CardTitle>Individual Training Actions</CardTitle>
+                  <CardDescription>Run each step separately if needed</CardDescription>
                 </CardHeader>
-                <CardContent className="flex gap-4">
+                <CardContent className="flex gap-4 flex-wrap">
                   <Button
+                    variant="outline"
                     onClick={() => syncDataset()}
-                    disabled={isSyncing}
+                    disabled={isSyncing || isRunningPipeline}
                   >
                     <RefreshCw className="mr-2 h-4 w-4" />
-                    {isSyncing ? 'Syncing...' : 'Sync Dataset'}
+                    {isSyncing ? 'Syncing...' : '1. Sync Dataset'}
                   </Button>
                   <Button
+                    variant="outline"
                     onClick={() => extractEmbeddings()}
-                    disabled={isExtracting || isSyncing}
+                    disabled={isExtracting || isSyncing || isRunningPipeline}
                   >
                     <Database className="mr-2 h-4 w-4" />
-                    {isExtracting ? 'Extracting...' : 'Extract Embeddings'}
+                    {isExtracting ? 'Extracting...' : '2. Extract Embeddings'}
                   </Button>
                   <Button
+                    variant="outline"
                     onClick={() => trainModel()}
-                    disabled={isTraining || isExtracting || isSyncing}
+                    disabled={isTraining || isExtracting || isSyncing || isRunningPipeline}
                   >
                     <Zap className="mr-2 h-4 w-4" />
-                    {isTraining ? 'Training...' : 'Train Model'}
+                    {isTraining ? 'Training...' : '3. Train Model'}
                   </Button>
                 </CardContent>
               </Card>
