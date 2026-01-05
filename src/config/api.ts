@@ -17,9 +17,11 @@ export const API_CONFIG = {
   ENDPOINTS: {
     // Dataset & Training
     SYNC_DATASET: "/api/dataset/sync",
+    SYNC_DATASET_URLS: "/api/dataset/sync-urls", // Faster URL-based sync
     EXTRACT_EMBEDDINGS: "/api/train/extract-embeddings",
     TRAIN_MODEL: "/api/train/model",
     TRAINING_STATUS: "/api/train/status",
+    DATASET_STATS: "/api/dataset/stats",
 
     // Recognition
     RECOGNIZE_IMAGE: "/api/recognize/image",

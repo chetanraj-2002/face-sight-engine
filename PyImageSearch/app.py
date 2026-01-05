@@ -6,8 +6,11 @@ import cv2
 import numpy as np
 import pickle
 import shutil
+import threading
+import requests
 from datetime import datetime
 from werkzeug.utils import secure_filename
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import imutils
 
 app = Flask(__name__)
@@ -141,6 +144,100 @@ def sync_dataset():
         })
     except Exception as e:
         print(f"[ERROR] in sync_dataset: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/dataset/sync-urls', methods=['POST'])
+def sync_dataset_urls():
+    """Faster sync using URLs - Python downloads directly from Supabase Storage"""
+    try:
+        data = request.json
+        if not data or 'images' not in data:
+            return jsonify({'success': False, 'error': 'No images provided'}), 400
+        
+        images = data['images']
+        
+        # Clear existing dataset
+        if os.path.exists(DATASET_DIR):
+            shutil.rmtree(DATASET_DIR)
+        os.makedirs(DATASET_DIR, exist_ok=True)
+        
+        users_set = set()
+        images_synced = 0
+        failed_downloads = 0
+        
+        def download_image(item):
+            """Download a single image"""
+            try:
+                usn = item.get('usn')
+                name = item.get('name')
+                class_name = item.get('class')
+                image_url = item.get('url')
+                filename = item.get('filename', 'image.jpg')
+                
+                if not all([usn, image_url]):
+                    return None, "Missing usn or url"
+                
+                # Create user directory
+                user_dir = os.path.join(DATASET_DIR, usn)
+                os.makedirs(user_dir, exist_ok=True)
+                
+                # Save user info (only once per user)
+                info_path = os.path.join(user_dir, 'info.json')
+                if not os.path.exists(info_path):
+                    with open(info_path, 'w') as f:
+                        json.dump({
+                            'usn': usn,
+                            'name': name,
+                            'class': class_name
+                        }, f)
+                
+                # Download image with ngrok-skip-browser-warning header
+                headers = {'ngrok-skip-browser-warning': 'true'}
+                response = requests.get(image_url, headers=headers, timeout=30)
+                
+                if response.status_code != 200:
+                    return None, f"HTTP {response.status_code}"
+                
+                # Save image
+                image_path = os.path.join(user_dir, filename)
+                with open(image_path, 'wb') as f:
+                    f.write(response.content)
+                
+                return usn, None
+                
+            except Exception as e:
+                return None, str(e)
+        
+        # Download images in parallel (faster!)
+        print(f"[INFO] Downloading {len(images)} images in parallel...")
+        start_time = datetime.now()
+        
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            futures = {executor.submit(download_image, img): img for img in images}
+            
+            for future in as_completed(futures):
+                usn, error = future.result()
+                if usn:
+                    users_set.add(usn)
+                    images_synced += 1
+                else:
+                    failed_downloads += 1
+                    if error:
+                        print(f"[WARN] Download failed: {error}")
+        
+        elapsed = (datetime.now() - start_time).total_seconds()
+        print(f"[INFO] Downloaded {images_synced} images in {elapsed:.1f}s ({failed_downloads} failed)")
+        
+        return jsonify({
+            'success': True,
+            'users_synced': len(users_set),
+            'images_synced': images_synced,
+            'failed_downloads': failed_downloads,
+            'time_seconds': round(elapsed, 1)
+        })
+        
+    except Exception as e:
+        print(f"[ERROR] in sync_dataset_urls: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/dataset/backup', methods=['POST'])
