@@ -21,10 +21,16 @@ serve(async (req) => {
       throw new Error('PYTHON_API_URL not configured');
     }
     
-    // Ensure URL has protocol
+    // Clean up URL - remove any leading/trailing whitespace and ensure no double protocols
+    pythonApiUrl = pythonApiUrl.trim();
+    
+    // If URL already has a protocol, use it as-is; otherwise add http://
     if (!pythonApiUrl.startsWith('http://') && !pythonApiUrl.startsWith('https://')) {
-      pythonApiUrl = `http://${pythonApiUrl}`;
+      pythonApiUrl = `https://${pythonApiUrl}`;
     }
+    
+    // Remove trailing slash if present
+    pythonApiUrl = pythonApiUrl.replace(/\/+$/, '');
 
     const formData = await req.formData();
     const imageFile = formData.get('image') as File;
