@@ -61,9 +61,13 @@ class ApiClient {
     }
   }
 
-  async post<T>(endpoint: string, body?: FormData | object): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, body?: FormData | object, timeoutMs: number = 120000): Promise<ApiResponse<T>> {
     const url = getApiUrl(endpoint);
     console.log(`[API Client] POST ${url}`);
+
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const headers: Record<string, string> = {
@@ -76,20 +80,32 @@ class ApiClient {
       if (body instanceof FormData) {
         requestBody = body;
         // Don't set Content-Type for FormData - browser will set it with boundary
-      } else {
-        // Always set Content-Type for JSON requests (even empty body)
+      } else if (body) {
         headers['Content-Type'] = 'application/json';
-        requestBody = JSON.stringify(body || {});
+        requestBody = JSON.stringify(body);
+        console.log(`[API Client] Payload size: ${(requestBody.length / 1024).toFixed(1)} KB`);
+      } else {
+        headers['Content-Type'] = 'application/json';
+        requestBody = '{}';
       }
 
       const response = await fetch(url, {
         method: 'POST',
         headers,
         body: requestBody,
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       return this.handleResponse<T>(response);
     } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error(`[API Client] Request timed out after ${timeoutMs / 1000}s`);
+        throw new Error(`Request timed out. The server may be processing a large dataset.`);
+      }
+      
       console.error(`[API Client] POST ${url} failed:`, error);
       throw this.formatError(error);
     }
