@@ -7,11 +7,12 @@ export const API_CONFIG = {
   // Enable this when using ngrok or local development
   USE_DIRECT_API: true,
 
-  // Python API URL - Set your ngrok URL here when testing from cloud preview
+  // Python API URL - Set your current ngrok URL here when testing from cloud preview
+  // IMPORTANT: ngrok URLs expire when you restart the tunnel - update this when it changes!
   // Example: 'https://abc123.ngrok-free.app' or 'http://localhost:5000' for local
   LOCAL_API_URL:
     import.meta.env.VITE_PYTHON_API_URL ||
-    "https://palanquiningly-asparaginous-dia.ngrok-free.dev",
+    "http://localhost:5000", // Default to localhost - update for ngrok
 
   // API endpoints matching the Flask backend
   ENDPOINTS: {

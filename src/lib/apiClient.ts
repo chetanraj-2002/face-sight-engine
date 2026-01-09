@@ -106,9 +106,12 @@ class ApiClient {
 
   private formatError(error: unknown): ApiError {
     if (error instanceof TypeError && error.message.includes('fetch')) {
+      const currentUrl = API_CONFIG.LOCAL_API_URL;
       return {
-        message: 'Cannot connect to Python API. Make sure the Flask server is running on localhost:5000',
-        details: 'Run: cd PyImageSearch && python app.py',
+        message: `Cannot connect to Python API at ${currentUrl}. Ensure the server is running.`,
+        details: currentUrl.includes('ngrok') 
+          ? 'Check that your ngrok tunnel is active and the URL is correct in src/config/api.ts'
+          : 'Run: cd PyImageSearch && python app.py',
       };
     }
 
