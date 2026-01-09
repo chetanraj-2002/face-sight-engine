@@ -40,7 +40,7 @@ export const useTraining = () => {
   // Get latest training status
   const latestJob = trainingJobs?.[0];
 
-  // Sync dataset mutation - now uses faster URL-based sync
+  // Sync dataset mutation - now uses faster URL-based sync with batching for large datasets
   const syncDataset = useMutation({
     mutationFn: async () => {
       if (isDirectApiMode()) {
@@ -91,10 +91,11 @@ export const useTraining = () => {
         const uniqueUsers = new Set(images.map(d => d.usn)).size;
         console.log(`[Training] Sending ${images.length} image URLs for ${uniqueUsers} users to Python API`);
         
-        // Use the faster URL-based sync endpoint
+        // Use the faster URL-based sync endpoint with extended timeout for large datasets
         const response = await apiClient.post<TrainingResponse>(
           API_CONFIG.ENDPOINTS.SYNC_DATASET_URLS,
-          { images }
+          { images },
+          180000 // 3 minute timeout for large datasets
         );
         return response.data;
       } else {
@@ -241,7 +242,11 @@ export const useTraining = () => {
         
         console.log(`[Pipeline] Sending ${images.length} image URLs for ${new Set(images.map(d => d.usn)).size} users`);
         
-        const response = await apiClient.post<TrainingResponse>(API_CONFIG.ENDPOINTS.SYNC_DATASET_URLS, { images });
+        const response = await apiClient.post<TrainingResponse>(
+          API_CONFIG.ENDPOINTS.SYNC_DATASET_URLS, 
+          { images },
+          180000 // 3 minute timeout for large datasets
+        );
         syncResult = response.data;
         
         if (!syncResult.success && syncResult.error) {
